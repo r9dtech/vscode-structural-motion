@@ -7,7 +7,8 @@ export function activate(context: vscode.ExtensionContext) {
 		if (!editor)
 			return;
 		const result = await vscode.commands.executeCommand('vscode.executeSelectionRangeProvider', editor.document.uri, [editor.selection.active])
-		let selectionRange: vscode.SelectionRange | undefined = parseSelectionRange(result);
+		const originalSelectionRange = parseSelectionRange(result);
+		let selectionRange: vscode.SelectionRange | undefined = originalSelectionRange;
 		while (selectionRange) {
 			vscode.window.showInformationMessage(JSON.stringify(selectionRange.range));
 			if (isFullLineSelection(selectionRange.range, editor)) {
@@ -18,7 +19,14 @@ export function activate(context: vscode.ExtensionContext) {
 		if (!selectionRange) {
 			return;
 		}
-		editor.selections = [new vscode.Selection(selectionRange.range.start, selectionRange.range.end)];
+		if(selectionRange.range.start.line < 1) {
+			return;
+		}
+		const beforeRange = editor.document.lineAt(selectionRange.range.start.line - 1).range
+		editor.selections = [
+			new vscode.Selection(selectionRange.range.start, selectionRange.range.end),
+			new vscode.Selection(beforeRange.start, beforeRange.end),
+		];
 	});
 
 	context.subscriptions.push(disposable);
