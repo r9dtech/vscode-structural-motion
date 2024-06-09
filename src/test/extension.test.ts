@@ -1,15 +1,35 @@
 import * as assert from 'assert';
+import { readFileSync } from 'fs';
+import * as path from 'path';
 
-// You can import and use all API from the 'vscode' module
-// as well as import your extension to test it
 import * as vscode from 'vscode';
-// import * as myExtension from '../../extension';
 
 suite('Extension Test Suite', () => {
-	vscode.window.showInformationMessage('Start all tests.');
+	test('Sample test', async () => {
+		const filePath = path.resolve(__dirname, '../../testFixture', 'multi-line-array.ts');
+		const originalContent = readFileSync(filePath, { encoding: 'utf-8' });
+		const editor = await openFile(filePath);
 
-	test('Sample test', () => {
-		assert.strictEqual(-1, [1, 2, 3].indexOf(5));
-		assert.strictEqual(-1, [1, 2, 3].indexOf(0));
+		const position = editor.document.lineAt(1).range.end;
+		editor.selections = [new vscode.Selection(position, position)];
+		await vscode.commands.executeCommand('structural-motion.moveStructureUp');
+
+		const content = editor.document.getText();
+		const actual = content.split(`//---\n`, 2)[0];
+		const expected = originalContent.split(`//---\n`, 2)[1];
+		assert.equal(actual, expected);
 	});
 });
+
+async function openFile(filePath: string): Promise<vscode.TextEditor> {
+	const document = await vscode.workspace.openTextDocument(filePath);
+	
+	await vscode.window.showTextDocument(document);
+
+	const editor = vscode.window.activeTextEditor;
+
+	if (!editor) {
+		assert.fail('Editor did not open');
+	}
+	return editor;
+}
