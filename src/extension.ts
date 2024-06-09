@@ -7,8 +7,10 @@ export function activate(context: vscode.ExtensionContext) {
 		if (!editor) {
 			return;
 		}
+		const documentUri = editor.document.uri;
+		const documentVersion = editor.document.version;
 		const originalCursorPosition = editor.selection.active;
-		const result = await vscode.commands.executeCommand('vscode.executeSelectionRangeProvider', editor.document.uri, [originalCursorPosition]);
+		const result = await vscode.commands.executeCommand('vscode.executeSelectionRangeProvider', documentUri, [originalCursorPosition]);
 		const originalSelectionRange = parseSelectionRange(result);
 		let selectionRange: vscode.SelectionRange | undefined = originalSelectionRange;
 		while (selectionRange) {
@@ -27,16 +29,10 @@ export function activate(context: vscode.ExtensionContext) {
 		const moveRange = selectionRange.range.union(editor.document.lineAt(selectionRange.range.end.line).rangeIncludingLineBreak);
 		const beforeRange = editor.document.lineAt(selectionRange.range.start.line - 1).rangeIncludingLineBreak;
 
-		await editor.edit(eb => {
-			const beforeText = editor.document.getText(beforeRange);
-			const moveText = editor.document.getText(moveRange);
+		editor.edit(eb=>{
+			eb.insert(moveRange.end, editor.document.getText(beforeRange));
 			eb.delete(beforeRange);
-			eb.delete(moveRange);
-			eb.insert(beforeRange.start, moveText);
-			eb.insert(beforeRange.start, beforeText);
 		});
-		const newCursorPosition = new vscode.Position(beforeRange.start.line, originalCursorPosition.character);
-		editor.selection = new vscode.Selection(newCursorPosition, newCursorPosition);
 	});
 
 	context.subscriptions.push(disposable);
