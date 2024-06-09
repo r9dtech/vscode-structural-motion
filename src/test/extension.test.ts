@@ -1,29 +1,36 @@
 import * as assert from 'assert';
-import { readFileSync } from 'fs';
+import { readFileSync, readdirSync } from 'fs';
 import * as path from 'path';
 
 import * as vscode from 'vscode';
 
+const tsFixtureFolders = readdirSync(path.resolve(__dirname, '../../testFixture/ts'), { withFileTypes: true })
+	.filter(dirent => dirent.isDirectory())
+	.map(dirent => dirent.name);
+
 suite('Extension Test Suite', () => {
-	test('Sample test', async () => {
-		const filePath = path.resolve(__dirname, '../../testFixture', 'multi-line-array.ts');
-		const originalContent = readFileSync(filePath, { encoding: 'utf-8' });
-		const editor = await openFile(filePath);
+	tsFixtureFolders.forEach(tsFixtureFolder => {
+		test(`.ts fixture: ${tsFixtureFolder}`, async () => {
+			const fixturePath = path.resolve(__dirname, '../../testFixture', 'ts' , tsFixtureFolder);
 
-		const position = editor.document.lineAt(1).range.end;
-		editor.selections = [new vscode.Selection(position, position)];
-		await vscode.commands.executeCommand('structural-motion.moveStructureUp');
+			const expectedResult = readFileSync(path.join(fixturePath, 'result.ts'), { encoding: 'utf-8' });
 
-		const content = editor.document.getText();
-		const actual = content.split(`//---\n`, 2)[0];
-		const expected = originalContent.split(`//---\n`, 2)[1];
-		assert.equal(actual, expected);
+			const editor = await openFile(path.join(fixturePath, 'before.ts'));
+
+			const position = editor.document.lineAt(1).range.end;
+			editor.selections = [new vscode.Selection(position, position)];
+			await vscode.commands.executeCommand('structural-motion.moveStructureUp');
+
+			const content = editor.document.getText();
+		
+			assert.equal(content, expectedResult);
+		});
 	});
 });
 
 async function openFile(filePath: string): Promise<vscode.TextEditor> {
 	const document = await vscode.workspace.openTextDocument(filePath);
-	
+
 	await vscode.window.showTextDocument(document);
 
 	const editor = vscode.window.activeTextEditor;

@@ -1,9 +1,0 @@
-console.log('something');
-console.log([
-    'multi-line-array'
-]);
-//---
-console.log([
-    'multi-line-array'
-]);
-console.log('something');
