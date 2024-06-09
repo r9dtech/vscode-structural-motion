@@ -4,8 +4,9 @@ import * as z from 'zod'
 export function activate(context: vscode.ExtensionContext) {
 	const disposable = vscode.commands.registerCommand('structural-motion.moveStructureUp', async () => {
 		const editor = vscode.window.activeTextEditor;
-		if (!editor)
+		if (!editor) {
 			return;
+		}
 		const result = await vscode.commands.executeCommand('vscode.executeSelectionRangeProvider', editor.document.uri, [editor.selection.active])
 		const originalSelectionRange = parseSelectionRange(result);
 		let selectionRange: vscode.SelectionRange | undefined = originalSelectionRange;
