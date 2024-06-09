@@ -29,6 +29,10 @@ export function activate(context: vscode.ExtensionContext) {
 		const moveRange = selectionRange.range.union(editor.document.lineAt(selectionRange.range.end.line).rangeIncludingLineBreak);
 		const beforeRange = editor.document.lineAt(selectionRange.range.start.line - 1).rangeIncludingLineBreak;
 
+		if (editor.document.uri !== documentUri || editor.document.version !== documentVersion) {
+			return; // TODO: log error?
+		}
+
 		editor.edit(eb=>{
 			eb.insert(moveRange.end, editor.document.getText(beforeRange));
 			eb.delete(beforeRange);
