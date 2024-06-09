@@ -19,13 +19,13 @@ export function activate(context: vscode.ExtensionContext) {
 		if (!selectionRange) {
 			return;
 		}
-		if(selectionRange.range.start.line < 1) {
+		if (selectionRange.range.start.line < 1) {
 			return;
 		}
 		const moveRange = selectionRange.range.union(editor.document.lineAt(selectionRange.range.end.line).rangeIncludingLineBreak);
-		const beforeRange = editor.document.lineAt(selectionRange.range.start.line - 1).rangeIncludingLineBreak
+		const beforeRange = editor.document.lineAt(selectionRange.range.start.line - 1).rangeIncludingLineBreak;
 
-		await editor.edit(eb=> {
+		await editor.edit(eb => {
 			const beforeText = editor.document.getText(beforeRange);
 			const moveText = editor.document.getText(moveRange);
 			eb.delete(beforeRange);
@@ -57,7 +57,7 @@ type SelectionRangeInput = z.input<typeof BaseSelectionRange$> & {
 
 const SelectionRange$: z.ZodType<vscode.SelectionRange, z.ZodTypeDef, SelectionRangeInput> = BaseSelectionRange$.extend({
 	parent: z.optional(z.lazy(() => SelectionRange$)),
-}).transform(sr=>new vscode.SelectionRange(sr.range, sr.parent));
+}).transform(sr => new vscode.SelectionRange(sr.range, sr.parent));
 
 const SelectionRangeResult$ = z.tuple([SelectionRange$]);
 
