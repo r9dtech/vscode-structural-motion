@@ -7,7 +7,8 @@ export function activate(context: vscode.ExtensionContext) {
 		if (!editor) {
 			return;
 		}
-		const result = await vscode.commands.executeCommand('vscode.executeSelectionRangeProvider', editor.document.uri, [editor.selection.active]);
+		const originalCursorPosition = editor.selection.active;
+		const result = await vscode.commands.executeCommand('vscode.executeSelectionRangeProvider', editor.document.uri, [originalCursorPosition]);
 		const originalSelectionRange = parseSelectionRange(result);
 		let selectionRange: vscode.SelectionRange | undefined = originalSelectionRange;
 		while (selectionRange) {
@@ -34,6 +35,8 @@ export function activate(context: vscode.ExtensionContext) {
 			eb.insert(beforeRange.start, moveText);
 			eb.insert(beforeRange.start, beforeText);
 		});
+		const newCursorPosition = new vscode.Position(beforeRange.start.line, originalCursorPosition.character);
+		editor.selection = new vscode.Selection(newCursorPosition, newCursorPosition);
 	});
 
 	context.subscriptions.push(disposable);
