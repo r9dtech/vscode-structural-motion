@@ -22,11 +22,17 @@ export function activate(context: vscode.ExtensionContext) {
 		if(selectionRange.range.start.line < 1) {
 			return;
 		}
-		const beforeRange = editor.document.lineAt(selectionRange.range.start.line - 1).range
-		editor.selections = [
-			new vscode.Selection(selectionRange.range.start, selectionRange.range.end),
-			new vscode.Selection(beforeRange.start, beforeRange.end),
-		];
+		const moveRange = selectionRange.range.union(editor.document.lineAt(selectionRange.range.end.line).rangeIncludingLineBreak);
+		const beforeRange = editor.document.lineAt(selectionRange.range.start.line - 1).rangeIncludingLineBreak
+
+		await editor.edit(eb=> {
+			const beforeText = editor.document.getText(beforeRange);
+			const moveText = editor.document.getText(moveRange);
+			eb.delete(beforeRange);
+			eb.delete(moveRange);
+			eb.insert(beforeRange.start, moveText);
+			eb.insert(beforeRange.start, beforeText);
+		});
 	});
 
 	context.subscriptions.push(disposable);
