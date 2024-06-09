@@ -33,7 +33,7 @@ export function activate(context: vscode.ExtensionContext) {
 			return; // TODO: log error?
 		}
 
-		editor.edit(eb=>{
+		await editor.edit(eb=>{
 			eb.insert(moveRange.end, editor.document.getText(beforeRange));
 			eb.delete(beforeRange);
 		});
