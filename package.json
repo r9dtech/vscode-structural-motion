@@ -14,8 +14,16 @@
   "contributes": {
     "commands": [
       {
-        "command": "structural-motion.helloWorld",
-        "title": "Hello World"
+        "command": "structural-motion.moveStructureUp",
+        "title": "Move Structure Up"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "structural-motion.moveStructureUp",
+        "key": "ctrl+shift+up",
+        "when": "editorTextFocus",
+        "mac": "cmd+shift+up"
       }
     ]
   },

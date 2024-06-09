@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as z from 'zod'
 
 export function activate(context: vscode.ExtensionContext) {
-	const disposable = vscode.commands.registerCommand('structural-motion.helloWorld', async () => {
+	const disposable = vscode.commands.registerCommand('structural-motion.moveStructureUp', async () => {
 		const editor = vscode.window.activeTextEditor;
 		if (!editor)
 			return;
