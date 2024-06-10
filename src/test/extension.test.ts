@@ -20,15 +20,14 @@ suite('Extension Test Suite', () => {
 
             const editor = await openFile(path.join(fixturePath, 'before.ts'));
 
-            const position = editor.document.lineAt(1).range.end;
-            editor.selections = [new vscode.Selection(position, position)];
+            await goToCursor(editor);
+
             await vscode.commands.executeCommand('structural-motion.moveStructureUp');
 
-            const content = editor.document.getText();
-
-            const expectedResult = readFileSync(path.join(fixturePath, 'result.ts'), { encoding: 'utf-8' });
-
-            assert.equal(expectedResult, content);
+            assert.equal(
+                readFileSync(path.join(fixturePath, 'result.ts'), { encoding: 'utf-8' }),
+                editor.document.getText(),
+            );
         });
     });
 });
@@ -46,4 +45,27 @@ async function openFile(filePath: string): Promise<vscode.TextEditor> {
         assert.fail('Editor did not open');
     }
     return editor;
+}
+
+async function goToCursor(editor: vscode.TextEditor) {
+    const cursorPlaceholder = '/*cursor*/';
+    for (let index = 0; index < editor.document.lineCount; index++) {
+        const line = editor.document.lineAt(index).text;
+        const cursorStartsAt = line.indexOf(cursorPlaceholder);
+        if (cursorStartsAt >= 0) {
+            const cursorPosition = new vscode.Position(index, cursorStartsAt);
+            await editor.edit((eb) => {
+                eb.replace(
+                    new vscode.Range(
+                        cursorPosition,
+                        cursorPosition.with({ character: cursorPosition.character + cursorPlaceholder.length }),
+                    ),
+                    '',
+                );
+            });
+            editor.selections = [new vscode.Selection(cursorPosition, cursorPosition)];
+            return;
+        }
+    }
+    assert.fail(`could not find ${cursorPlaceholder} in ${editor.document.uri.toString()}`);
 }
