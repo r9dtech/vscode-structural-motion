@@ -14,7 +14,6 @@ export function activate(context: vscode.ExtensionContext) {
 		const originalSelectionRange = parseSelectionRange(result);
 		let selectionRange: vscode.SelectionRange | undefined = originalSelectionRange;
 		while (selectionRange) {
-			vscode.window.showInformationMessage(JSON.stringify(selectionRange.range));
 			if (isFullLineSelection(selectionRange.range, editor)) {
 				break;
 			}
@@ -77,4 +76,6 @@ function isFullLineSelection(range: vscode.Range, editor: vscode.TextEditor) {
 	);
 }
 
-export function deactivate() { }
+export function deactivate() {
+	// This plugin has nothing to deactivate
+ }
