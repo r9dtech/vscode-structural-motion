@@ -69,3 +69,9 @@ You can author your README using Visual Studio Code. Here are some useful editor
 * [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
 
 **Enjoy!**
+
+## Development
+
+This repository uses prettier and eslint - be sure to set these up in your IDE if making contributions. Alternatively you can use `npm run format:fix` to format code before committing.
+
+Use `npm run check` to ensure that the code is linted, formatted, and the tests pass.

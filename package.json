@@ -33,7 +33,10 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts --max-warnings=0",
-    "test": "vscode-test"
+    "test": "vscode-test",
+    "format:check": "prettier . --check",
+    "format:fix": "prettier . --write",
+    "check": "npm run format:check && npm run test"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.6",
@@ -44,6 +47,8 @@
     "@vscode/test-cli": "^0.0.9",
     "@vscode/test-electron": "^2.4.0",
     "eslint": "^8.57.0",
+    "eslint-config-prettier": "9.1.0",
+    "prettier": "3.3.1",
     "typescript": "^5.4.5"
   },
   "dependencies": {

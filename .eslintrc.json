@@ -12,8 +12,8 @@
     "extends":[
         "eslint:recommended",
         "plugin:@typescript-eslint/recommended-type-checked",
-        "plugin:@typescript-eslint/stylistic-type-checked",
-        "plugin:@typescript-eslint/strict-type-checked"
+        "plugin:@typescript-eslint/strict-type-checked",
+        "prettier" // prettier must come last: https://github.com/prettier/eslint-config-prettier?tab=readme-ov-file#installation
     ],
     "rules": {
         "@typescript-eslint/naming-convention": [
