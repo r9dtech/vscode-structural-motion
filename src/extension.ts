@@ -1,17 +1,8 @@
 import { assert } from 'console';
-import {
-    ExtensionContext,
-    commands,
-    window,
-    SelectionRange,
-    Uri,
-    Position,
-    Range,
-    TextDocument,
-} from 'vscode';
+import { ExtensionContext, commands, window, SelectionRange, Uri, Position, Range, TextDocument } from 'vscode';
 
 export function activate(context: ExtensionContext) {
-    const disposable = commands.registerCommand('structural-motion.moveStructureUp', async () => {
+    const disposable = commands.registerCommand('structural-motion.moveStructureDown', async () => {
         const editor = window.activeTextEditor;
 
         if (!editor) {
@@ -24,32 +15,31 @@ export function activate(context: ExtensionContext) {
 
         const sourceStructure = await findStructure(editor.document, cursorPosition);
 
-        if (!sourceStructure || sourceStructure.start.line < 1) {
+        if (!sourceStructure) {
             return;
         }
 
         const fullSourceRange = sourceStructure.union(
             editor.document.lineAt(sourceStructure.end.line).rangeIncludingLineBreak,
         );
-        const fullTargetRange = editor.document.lineAt(sourceStructure.start.line - 1).rangeIncludingLineBreak;
+
+        const fullTargetRange = editor.document.lineAt(sourceStructure.end.line + 1).rangeIncludingLineBreak;
 
         await editor.edit((eb) => {
             if (editor.document.uri !== documentUri || editor.document.version !== documentVersion) {
                 console.error('structural-motion not applying change as document has changed');
                 return;
             }
-            eb.insert(fullSourceRange.end, editor.document.getText(fullTargetRange));
             eb.delete(fullTargetRange);
+            const targetText = editor.document.getText(fullTargetRange);
+            eb.insert(fullSourceRange.start, targetText);
         });
     });
 
     context.subscriptions.push(disposable);
 }
 
-async function findStructure(
-    document: TextDocument,
-    originalCursorPosition: Position,
-): Promise<Range | undefined> {
+async function findStructure(document: TextDocument, originalCursorPosition: Position): Promise<Range | undefined> {
     let selectionRange: SelectionRange | undefined = await getSelectionRanges(document.uri, originalCursorPosition);
 
     while (selectionRange) {

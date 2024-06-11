@@ -14,16 +14,16 @@
     "contributes": {
         "commands": [
             {
-                "command": "structural-motion.moveStructureUp",
-                "title": "Move Structure Up"
+                "command": "structural-motion.moveStructureDown",
+                "title": "Move Structure Down"
             }
         ],
         "keybindings": [
             {
-                "command": "structural-motion.moveStructureUp",
-                "key": "ctrl+shift+up",
+                "command": "structural-motion.moveStructureDown",
+                "key": "ctrl+shift+down",
                 "when": "editorTextFocus",
-                "mac": "cmd+shift+up"
+                "mac": "cmd+shift+down"
             }
         ]
     },

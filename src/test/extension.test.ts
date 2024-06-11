@@ -22,7 +22,7 @@ suite('Extension Test Suite', () => {
 
             await goToCursor(editor);
 
-            await vscode.commands.executeCommand('structural-motion.moveStructureUp');
+            await vscode.commands.executeCommand('structural-motion.moveStructureDown');
 
             assert.equal(
                 readFileSync(path.join(fixturePath, 'result.ts'), { encoding: 'utf-8' }),
