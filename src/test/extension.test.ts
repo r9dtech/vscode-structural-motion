@@ -55,12 +55,11 @@ async function goToCursor(editor: vscode.TextEditor) {
         if (cursorStartsAt >= 0) {
             const cursorPosition = new vscode.Position(index, cursorStartsAt);
             await editor.edit((eb) => {
-                eb.replace(
+                eb.delete(
                     new vscode.Range(
                         cursorPosition,
                         cursorPosition.with({ character: cursorPosition.character + cursorPlaceholder.length }),
                     ),
-                    '',
                 );
             });
             editor.selections = [new vscode.Selection(cursorPosition, cursorPosition)];
