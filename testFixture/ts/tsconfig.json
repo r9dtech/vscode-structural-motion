@@ -1,0 +1,6 @@
+// This file is only here to keep IDEs from highlighting errors incorrectly in our test fixtures
+{
+    "compilerOptions": {
+        "moduleDetection": "force" // treat all files as modules so that things declared in multiple test fixtures don't appear to be clashing
+    }
+}
