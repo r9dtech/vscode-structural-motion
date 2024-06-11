@@ -1,9 +1,18 @@
 import { assert } from 'console';
-import * as vscode from 'vscode';
+import {
+    ExtensionContext,
+    commands,
+    window,
+    SelectionRange,
+    Uri,
+    Position,
+    Range,
+    TextDocument,
+} from 'vscode';
 
-export function activate(context: vscode.ExtensionContext) {
-    const disposable = vscode.commands.registerCommand('structural-motion.moveStructureUp', async () => {
-        const editor = vscode.window.activeTextEditor;
+export function activate(context: ExtensionContext) {
+    const disposable = commands.registerCommand('structural-motion.moveStructureUp', async () => {
+        const editor = window.activeTextEditor;
 
         if (!editor) {
             return;
@@ -11,57 +20,59 @@ export function activate(context: vscode.ExtensionContext) {
 
         const documentUri = editor.document.uri;
         const documentVersion = editor.document.version;
-        const originalCursorPosition = editor.selection.active;
+        const cursorPosition = editor.selection.active;
 
-        let selectionRange: vscode.SelectionRange | undefined = await getSelectionRanges(
-            documentUri,
-            originalCursorPosition,
-        );
+        const sourceStructure = await findStructure(editor.document, cursorPosition);
 
-        while (selectionRange) {
-            if (isFullLineSelection(selectionRange.range, editor)) {
-                break;
-            }
-            selectionRange = selectionRange.parent;
-        }
-
-        if (!selectionRange || selectionRange.range.start.line < 1) {
+        if (!sourceStructure || sourceStructure.start.line < 1) {
             return;
         }
 
-        const moveRange = selectionRange.range.union(
-            editor.document.lineAt(selectionRange.range.end.line).rangeIncludingLineBreak,
+        const fullSourceRange = sourceStructure.union(
+            editor.document.lineAt(sourceStructure.end.line).rangeIncludingLineBreak,
         );
-        const beforeRange = editor.document.lineAt(selectionRange.range.start.line - 1).rangeIncludingLineBreak;
-
-        if (editor.document.uri !== documentUri || editor.document.version !== documentVersion) {
-            return; // TODO: log error?
-        }
+        const fullTargetRange = editor.document.lineAt(sourceStructure.start.line - 1).rangeIncludingLineBreak;
 
         await editor.edit((eb) => {
-            eb.insert(moveRange.end, editor.document.getText(beforeRange));
-            eb.delete(beforeRange);
+            if (editor.document.uri !== documentUri || editor.document.version !== documentVersion) {
+                console.error('structural-motion not applying change as document has changed');
+                return;
+            }
+            eb.insert(fullSourceRange.end, editor.document.getText(fullTargetRange));
+            eb.delete(fullTargetRange);
         });
     });
 
     context.subscriptions.push(disposable);
 }
 
-async function getSelectionRanges(uri: vscode.Uri, position: vscode.Position): Promise<vscode.SelectionRange> {
-    const result = await vscode.commands.executeCommand<vscode.SelectionRange[]>(
-        'vscode.executeSelectionRangeProvider',
-        uri,
-        [position],
-    );
+async function findStructure(
+    document: TextDocument,
+    originalCursorPosition: Position,
+): Promise<Range | undefined> {
+    let selectionRange: SelectionRange | undefined = await getSelectionRanges(document.uri, originalCursorPosition);
+
+    while (selectionRange) {
+        if (isFullLineSelection(document, selectionRange.range)) {
+            break;
+        }
+        selectionRange = selectionRange.parent;
+    }
+    return selectionRange?.range;
+}
+
+async function getSelectionRanges(uri: Uri, position: Position): Promise<SelectionRange> {
+    const result = await commands.executeCommand<SelectionRange[]>('vscode.executeSelectionRangeProvider', uri, [
+        position,
+    ]);
     assert(result instanceof Array && result.length === 1);
-    assert(result[0] instanceof vscode.SelectionRange);
+    assert(result[0] instanceof SelectionRange);
     return result[0];
 }
 
-function isFullLineSelection(range: vscode.Range, editor: vscode.TextEditor) {
+function isFullLineSelection(document: TextDocument, range: Range): boolean {
     return (
-        range.contains(editor.document.lineAt(range.start.line).range) &&
-        range.contains(editor.document.lineAt(range.end.line).range)
+        range.contains(document.lineAt(range.start.line).range) && range.contains(document.lineAt(range.end.line).range)
     );
 }
 
