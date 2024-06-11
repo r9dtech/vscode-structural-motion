@@ -13,9 +13,15 @@ export function activate(context: ExtensionContext) {
         const documentVersion = editor.document.version;
         const cursorPosition = editor.selection.active;
 
-        const sourceStructure = await findStructure(editor.document, cursorPosition);
+        const sourceStructure = await findStructure(editor.document, cursorPosition.line);
 
         if (!sourceStructure) {
+            return;
+        }
+
+        const targetStructure = await findStructure(editor.document, sourceStructure.end.line + 1);
+
+        if (!targetStructure) {
             return;
         }
 
@@ -23,7 +29,9 @@ export function activate(context: ExtensionContext) {
             editor.document.lineAt(sourceStructure.end.line).rangeIncludingLineBreak,
         );
 
-        const fullTargetRange = editor.document.lineAt(sourceStructure.end.line + 1).rangeIncludingLineBreak;
+        const fullTargetRange = targetStructure.union(
+            editor.document.lineAt(targetStructure.end.line).rangeIncludingLineBreak,
+        );
 
         await editor.edit((eb) => {
             if (editor.document.uri !== documentUri || editor.document.version !== documentVersion) {
@@ -39,8 +47,8 @@ export function activate(context: ExtensionContext) {
     context.subscriptions.push(disposable);
 }
 
-async function findStructure(document: TextDocument, originalCursorPosition: Position): Promise<Range | undefined> {
-    let selectionRange: SelectionRange | undefined = await getSelectionRanges(document.uri, originalCursorPosition);
+async function findStructure(document: TextDocument, line: number): Promise<Range | undefined> {
+    let selectionRange: SelectionRange | undefined = await getSelectionRanges(document.uri, document.lineAt(line).range.end);
 
     while (selectionRange) {
         if (isFullLineSelection(document, selectionRange.range)) {
