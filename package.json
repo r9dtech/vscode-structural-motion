@@ -16,6 +16,10 @@
             {
                 "command": "structural-motion.moveStructureDown",
                 "title": "Move Structure Down"
+            },
+            {
+                "command": "structural-motion.moveStructureUp",
+                "title": "Move Structure Down"
             }
         ],
         "keybindings": [
@@ -24,6 +28,12 @@
                 "key": "ctrl+shift+down",
                 "when": "editorTextFocus",
                 "mac": "cmd+shift+down"
+            },
+            {
+                "command": "structural-motion.moveStructureUp",
+                "key": "ctrl+shift+up",
+                "when": "editorTextFocus",
+                "mac": "cmd+shift+up"
             }
         ]
     },

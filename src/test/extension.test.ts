@@ -9,14 +9,18 @@ const tsFixtureFolders = readdirSync(path.resolve(__dirname, '../../testFixture/
     .filter((dirent) => dirent.isDirectory())
     .map((dirent) => dirent.name);
 
-suite('Extension Test Suite', () => {
-    tsFixtureFolders.forEach((tsFixtureFolder) => {
-        afterEach(async () => {
-            await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
-        });
+const cursorPlaceholder = '/*cursor*/';
 
-        test(`.ts fixture: ${tsFixtureFolder}`, async () => {
-            const fixturePath = path.resolve(__dirname, '../../testFixture', 'ts', tsFixtureFolder);
+suite('Extension Test Suite', () => {
+    afterEach(async () => {
+        await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
+    });
+
+    tsFixtureFolders.forEach((tsFixtureFolder) => {
+        const fixturePath = path.resolve(__dirname, '../../testFixture', 'ts', tsFixtureFolder);
+
+        test(`Move Down .ts fixture: ${tsFixtureFolder}`, async () => {
+            const expectedResult = readFileSync(path.join(path.join(fixturePath, 'result.ts')), { encoding: 'utf-8' });
 
             const editor = await openFile(path.join(fixturePath, 'before.ts'));
 
@@ -24,10 +28,22 @@ suite('Extension Test Suite', () => {
 
             await vscode.commands.executeCommand('structural-motion.moveStructureDown');
 
-            assert.equal(
-                readFileSync(path.join(fixturePath, 'result.ts'), { encoding: 'utf-8' }),
-                editor.document.getText(),
-            );
+            assert.equal(expectedResult, editor.document.getText());
+        });
+
+        test(`Move Up .ts fixture: ${tsFixtureFolder}`, async () => {
+            const expectedResult = readFileSync(path.join(path.join(fixturePath, 'before.ts')), {
+                encoding: 'utf-8',
+            }).replace(cursorPlaceholder, '');
+
+            const editor = await openFile(path.join(fixturePath, 'before.ts'));
+
+            await goToCursor(editor);
+
+            await vscode.commands.executeCommand('structural-motion.moveStructureDown');
+            await vscode.commands.executeCommand('structural-motion.moveStructureUp');
+
+            assert.equal(expectedResult, editor.document.getText());
         });
     });
 });
@@ -48,7 +64,6 @@ async function openFile(filePath: string): Promise<vscode.TextEditor> {
 }
 
 async function goToCursor(editor: vscode.TextEditor) {
-    const cursorPlaceholder = '/*cursor*/';
     for (let index = 0; index < editor.document.lineCount; index++) {
         const line = editor.document.lineAt(index).text;
         const cursorStartsAt = line.indexOf(cursorPlaceholder);
