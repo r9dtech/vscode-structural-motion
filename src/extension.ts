@@ -91,12 +91,20 @@ export function activate(context: ExtensionContext) {
 }
 
 async function findStructureFromFirstLine(document: TextDocument, line: number): Promise<Range | undefined> {
+    if (document.lineAt(line).isEmptyOrWhitespace) {
+        return document.lineAt(line).range;
+    }
+    
     const selectionRange = await getSelectionRanges(document, line, 'end');
 
     return expandSelectionRangeUntilFullLines(document, selectionRange)?.range;
 }
 
 async function findStructureFromLastLine(document: TextDocument, line: number): Promise<Range | undefined> {
+    if (document.lineAt(line).isEmptyOrWhitespace) {
+        return document.lineAt(line).range;
+    }
+
     const selectionRange = await getSelectionRanges(document, line, 'start');
 
     const candidateStructure = expandSelectionRangeUntilFullLines(document, selectionRange);
