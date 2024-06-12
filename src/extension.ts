@@ -34,6 +34,13 @@ export function activate(context: ExtensionContext) {
                 editor.document.lineAt(targetStructure.end.line).rangeIncludingLineBreak,
             );
 
+
+            const intersection = fullSourceRange.intersection(fullTargetRange);
+
+            if (!intersection?.isEmpty) {
+                return;
+            }
+
             await editor.edit((eb) => {
                 if (editor.document.uri !== documentUri || editor.document.version !== documentVersion) {
                     console.error('structural-motion not applying change as document has changed');
@@ -76,6 +83,12 @@ export function activate(context: ExtensionContext) {
             const fullTargetRange = targetStructure.union(
                 editor.document.lineAt(targetStructure.end.line).rangeIncludingLineBreak,
             );
+
+            const intersection = fullSourceRange.intersection(fullTargetRange);
+
+            if (!intersection?.isEmpty) {
+                return;
+            }
 
             await editor.edit((eb) => {
                 if (editor.document.uri !== documentUri || editor.document.version !== documentVersion) {
