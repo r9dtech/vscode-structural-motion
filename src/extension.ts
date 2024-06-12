@@ -90,31 +90,50 @@ export function activate(context: ExtensionContext) {
     );
 }
 
-async function findStructureFromFirstLine(document: TextDocument, line: number) {
-    return findStructure(document, line, 'end');
+async function findStructureFromFirstLine(document: TextDocument, line: number): Promise<Range | undefined> {
+    const selectionRange = await getSelectionRanges(document, line, 'end');
+
+    return expandSelectionRangeUntilFullLines(document, selectionRange)?.range;
 }
 
-async function findStructureFromLastLine(document: TextDocument, line: number) {
-    const candidateStructure = await findStructure(document, line, 'start');
-    if (!candidateStructure) {
-        return;
+async function findStructureFromLastLine(document: TextDocument, line: number): Promise<Range | undefined> {
+    const selectionRange = await getSelectionRanges(document, line, 'start');
+
+    const candidateStructure = expandSelectionRangeUntilFullLines(document, selectionRange);
+
+    const checkStructureRange = candidateStructure
+        ? await findStructureFromFirstLine(document, candidateStructure.range.start.line)
+        : undefined;
+
+    const candidateWiderStructure =
+        candidateStructure && candidateStructure.parent
+            ? expandSelectionRangeUntilFullLines(document, candidateStructure.parent)
+            : undefined;
+
+    const checkWiderStructureRange =
+        candidateStructure && candidateWiderStructure
+            ? await findStructureFromFirstLine(document, candidateWiderStructure.range.start.line)
+            : undefined;
+
+    if (
+        candidateWiderStructure &&
+        checkWiderStructureRange &&
+        checkWiderStructureRange.end.line === line &&
+        candidateWiderStructure.range.isEqual(checkWiderStructureRange)
+    ) {
+        return checkWiderStructureRange;
     }
-    const checkStructure = await findStructureFromFirstLine(document, candidateStructure.start.line);
-    return checkStructure?.isEqual(candidateStructure)
-        ? candidateStructure
-        : findStructureFromFirstLine(document, line);
-}
 
-async function findStructure(
-    document: TextDocument,
-    line: number,
-    lineLocation: keyof Pick<Range, 'start' | 'end'>,
-): Promise<Range | undefined> {
-    let selectionRange: SelectionRange | undefined = await getSelectionRanges(document, line, lineLocation);
+    if (
+        candidateStructure &&
+        checkStructureRange &&
+        checkStructureRange.end.line === line &&
+        candidateStructure.range.isEqual(checkStructureRange)
+    ) {
+        return checkStructureRange;
+    }
 
-    selectionRange = expandSelectionRangeUntilFullLines(document, selectionRange);
-
-    return selectionRange?.range;
+    return findStructureFromFirstLine(document, line);
 }
 
 function expandSelectionRangeUntilFullLines(document: TextDocument, selectionRange: SelectionRange) {
