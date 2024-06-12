@@ -14,13 +14,13 @@ export function activate(context: ExtensionContext) {
             const documentVersion = editor.document.version;
             const cursorPosition = editor.selection.active;
 
-            const sourceStructure = await findStructure(editor.document, cursorPosition.line);
+            const sourceStructure = await findStructureFromFirstLine(editor.document, cursorPosition.line);
 
             if (!sourceStructure) {
                 return;
             }
 
-            const targetStructure = await findStructure(editor.document, sourceStructure.end.line + 1);
+            const targetStructure = await findStructureFromFirstLine(editor.document, sourceStructure.end.line + 1);
 
             if (!targetStructure) {
                 return;
@@ -57,13 +57,13 @@ export function activate(context: ExtensionContext) {
             const documentVersion = editor.document.version;
             const cursorPosition = editor.selection.active;
 
-            const sourceStructure = await findStructure(editor.document, cursorPosition.line);
+            const sourceStructure = await findStructureFromFirstLine(editor.document, cursorPosition.line);
 
             if (!sourceStructure) {
                 return;
             }
 
-            const targetStructure = await findStructure(editor.document, sourceStructure.start.line - 1);
+            const targetStructure = await findStructureFromLastLine(editor.document, sourceStructure.start.line - 1);
 
             if (!targetStructure) {
                 return;
@@ -90,51 +90,31 @@ export function activate(context: ExtensionContext) {
     );
 }
 
-async function findStructure(document: TextDocument, line: number): Promise<Range | undefined> {
-    let selectionRange: SelectionRange | undefined = await getSelectionRanges(document, line);
+async function findStructureFromFirstLine(document: TextDocument, line: number) {
+    return findStructure(document, line, 'end');
+}
+
+async function findStructureFromLastLine(document: TextDocument, line: number) {
+    const candidateStructure = await findStructure(document, line, 'start');
+    if (!candidateStructure) {
+        return;
+    }
+    const checkStructure = await findStructureFromFirstLine(document, candidateStructure.start.line);
+    return checkStructure?.isEqual(candidateStructure)
+        ? candidateStructure
+        : findStructureFromFirstLine(document, line);
+}
+
+async function findStructure(
+    document: TextDocument,
+    line: number,
+    lineLocation: keyof Pick<Range, 'start' | 'end'>,
+): Promise<Range | undefined> {
+    let selectionRange: SelectionRange | undefined = await getSelectionRanges(document, line, lineLocation);
 
     selectionRange = expandSelectionRangeUntilFullLines(document, selectionRange);
 
-    if (!selectionRange) {
-        return undefined;
-    }
-
-    // We have a block which makes up whole lines.
-    // If the line parameter was at the start of the structure, then this is likely a whole stucture (method/class/whatever)
-    // otherwise we can try to expand our scope once more to find a structure which ends on this line.
-
-    if (!selectionRange.range.isSingleLine) {
-        // further expansion is unlikely not useful if the range is already multi-line.
-        return selectionRange.range;
-    }
-
-    if (!selectionRange.parent) {
-        // no further epansion possible, stick with what we've found already.
-        return selectionRange.range;
-    }
-
-    const widerSelectionRange = expandSelectionRangeUntilFullLines(document, selectionRange.parent);
-
-    if (!widerSelectionRange) {
-        // no further epansion possible, stick with what we've found already.
-        return;
-    }
-
-    if (widerSelectionRange.range.end.line !== selectionRange.range.end.line) {
-        // if the selection expands down, we are unlikely to be at the end of a structure
-        return selectionRange.range;
-    }
-
-    const widerSelectionRangeCheck = expandSelectionRangeUntilFullLines(
-        document,
-        await getSelectionRanges(document, widerSelectionRange.range.start.line),
-    );
-
-    if (!widerSelectionRangeCheck || widerSelectionRange.range.isEqual(widerSelectionRangeCheck.range)) {
-        return widerSelectionRange.range;
-    }
-
-    return selectionRange.range;
+    return selectionRange?.range;
 }
 
 function expandSelectionRangeUntilFullLines(document: TextDocument, selectionRange: SelectionRange) {
@@ -148,8 +128,12 @@ function expandSelectionRangeUntilFullLines(document: TextDocument, selectionRan
     return current;
 }
 
-async function getSelectionRanges(document: TextDocument, line: number): Promise<SelectionRange> {
-    const position = document.lineAt(line).range.end;
+async function getSelectionRanges(
+    document: TextDocument,
+    line: number,
+    lineLocation: keyof Pick<Range, 'start' | 'end'>,
+): Promise<SelectionRange> {
+    const position = document.lineAt(line).range[lineLocation];
     const result = await commands.executeCommand<SelectionRange[]>(
         'vscode.executeSelectionRangeProvider',
         document.uri,
