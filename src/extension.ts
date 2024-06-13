@@ -1,5 +1,14 @@
 import assert from 'assert';
-import { ExtensionContext, commands, window, SelectionRange, Range, TextDocument } from 'vscode';
+import {
+    ExtensionContext,
+    commands,
+    window,
+    SelectionRange,
+    Range,
+    TextDocument,
+    DocumentSymbol,
+    Position,
+} from 'vscode';
 
 export function activate(context: ExtensionContext) {
     context.subscriptions.push(
@@ -107,94 +116,104 @@ async function findStructure(document: TextDocument, line: number): Promise<Rang
         return document.lineAt(line).range;
     }
 
-    const candidateStructure = await findFullLineSelectionRangeUsingLineStart(document, line);
+    const docLine = document.lineAt(line);
 
-    const checkStructureRange = candidateStructure
-        ? await findFullLineSelectionRangeUsingLineEnd(document, candidateStructure.range.start.line)
-        : undefined;
+    const symbolsPromise = getSymbolInformation(document);
 
-    const candidateWiderStructure = // maybe this is the last line of a function, or some structure with a single bracket/brace
-        candidateStructure && candidateStructure.parent
-            ? expandSelectionRangeUntilFullLines(document, candidateStructure.parent)
-            : undefined;
+    const [selectionRangesFromLineStart, selectionRangesFromLineEnd] = await getSelectionRanges(document, [
+        new Position(line, docLine.firstNonWhitespaceCharacterIndex),
+        document.lineAt(line).range.end,
+    ]);
 
-    const checkWiderStructureRange =
-        candidateStructure && candidateWiderStructure
-            ? await findFullLineSelectionRangeUsingLineEnd(document, candidateWiderStructure.range.start.line)
-            : undefined;
+    const upwardsRanges = extractFullLineRanges(document, selectionRangesFromLineStart).filter(
+        (r) => r.end.line === line,
+    );
 
-    if (
-        candidateWiderStructure &&
-        checkWiderStructureRange &&
-        checkWiderStructureRange.range.end.line === line &&
-        candidateWiderStructure.range.isEqual(checkWiderStructureRange.range)
-    ) {
-        return checkWiderStructureRange.range;
+    const downwardRanges = extractFullLineRanges(document, selectionRangesFromLineEnd).filter(
+        (r) => r.start.line === line,
+    );
+
+    const sortedRanges = [...downwardRanges, ...upwardsRanges].sort(
+        (a, b) => a.end.line - a.start.line - (b.end.line - b.start.line),
+    );
+    const symbols = await symbolsPromise;
+    for (const range of sortedRanges) {
+        if (rangeMatchesSymbol(range, symbols)) {
+            return range;
+        }
     }
 
-    if (
-        candidateStructure &&
-        checkStructureRange &&
-        checkStructureRange.range.end.line === line &&
-        candidateStructure.range.isEqual(checkStructureRange.range)
-    ) {
-        return checkStructureRange.range;
+    // check the non-single-line upwardRanges to see if any of them have an equivalent downward range - implying they are a complete structure
+    const nonSinleLineUpwardRanges = upwardsRanges.filter((range) => !range.isSingleLine);
+
+    const nonSingleLineUpwardRangeStarts = nonSinleLineUpwardRanges.map((range) =>
+        range.start.with({ character: document.lineAt(range.start.line).range.end.character }),
+    );
+
+    const upwardRangeCheckSelectionRanges = await getSelectionRanges(document, nonSingleLineUpwardRangeStarts);
+
+    for (let index = 0; index < upwardRangeCheckSelectionRanges.length; index++) {
+        const upwardRange = nonSinleLineUpwardRanges[index];
+        const checkSelectionRange = upwardRangeCheckSelectionRanges[index];
+        const checkRanges = extractFullLineRanges(document, checkSelectionRange);
+        if (checkRanges[0]?.isEqual(upwardRange)) {
+            // first expansion in JS tends to match - e.g. multi-line-string
+            return upwardRange;
+        }
     }
 
-    return (await findFullLineSelectionRangeUsingLineEnd(document, line))?.range;
+    //if nothing, return the first downwardRange
+    return downwardRanges[0];
 }
 
-async function findFullLineSelectionRangeUsingLineEnd(
-    document: TextDocument,
-    line: number,
-): Promise<SelectionRange | undefined> {
-    if (document.lineAt(line).isEmptyOrWhitespace) {
-        return document.lineAt(line);
-    }
-
-    const selectionRange = await getSelectionRanges(document, line, 'end');
-
-    return expandSelectionRangeUntilFullLines(document, selectionRange);
-}
-
-async function findFullLineSelectionRangeUsingLineStart(
-    document: TextDocument,
-    line: number,
-): Promise<SelectionRange | undefined> {
-    if (document.lineAt(line).isEmptyOrWhitespace) {
-        return document.lineAt(line);
-    }
-
-    const selectionRange = await getSelectionRanges(document, line, 'start');
-
-    return expandSelectionRangeUntilFullLines(document, selectionRange);
-}
-
-function expandSelectionRangeUntilFullLines(document: TextDocument, selectionRange: SelectionRange) {
+function extractFullLineRanges(document: TextDocument, selectionRange: SelectionRange): Range[] {
+    const results: Range[] = [];
     let current: SelectionRange | undefined = selectionRange;
     while (current) {
         if (isFullLineSelection(document, current.range)) {
-            break;
+            results.push(current.range);
         }
         current = current.parent;
     }
-    return current;
+    return results;
 }
 
-async function getSelectionRanges(
-    document: TextDocument,
-    line: number,
-    lineLocation: keyof Pick<Range, 'start' | 'end'>,
-): Promise<SelectionRange> {
-    const position = document.lineAt(line).range[lineLocation];
+function rangeMatchesSymbol(range: Range, symbols: DocumentSymbol[]): boolean {
+    for (const symbol of symbols) {
+        // pretend the range covers the whole line, like for const `f = function()=>{}`, tho that might not always be true
+        const symbolRange = symbol.range.with({ start: symbol.range.start.with({ character: 0 }) });
+        if (symbolRange.isEqual(range)) {
+            return true;
+        }
+        if (symbolRange.contains(range)) {
+            if (rangeMatchesSymbol(range, symbol.children)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+async function getSelectionRanges(document: TextDocument, positions: Position[]): Promise<SelectionRange[]> {
     const result = await commands.executeCommand<SelectionRange[]>(
         'vscode.executeSelectionRangeProvider',
         document.uri,
-        [position],
+        positions,
     );
-    assert(result instanceof Array && result.length === 1);
-    assert(result[0] instanceof SelectionRange);
-    return result[0];
+    assert(result instanceof Array);
+    assert(result.every((sr) => sr instanceof SelectionRange));
+    assert(result.length === positions.length);
+    return result;
+}
+
+async function getSymbolInformation(document: TextDocument): Promise<DocumentSymbol[]> {
+    const result = await commands.executeCommand<DocumentSymbol[] | undefined | null>(
+        'vscode.executeDocumentSymbolProvider',
+        document.uri,
+    );
+    assert(!result || result instanceof Array);
+    // assert(result.every((r) => r instanceof DocumentSymbol)); TODO: this is some kind of weird lie!
+    return result ?? [];
 }
 
 function isFullLineSelection(document: TextDocument, range: Range): boolean {
