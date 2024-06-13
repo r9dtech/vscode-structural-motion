@@ -34,7 +34,6 @@ export function activate(context: ExtensionContext) {
                 editor.document.lineAt(targetStructure.end.line).rangeIncludingLineBreak,
             );
 
-
             const intersection = fullSourceRange.intersection(fullTargetRange);
 
             if (!intersection?.isEmpty) {
@@ -115,7 +114,7 @@ async function findStructure(document: TextDocument, line: number): Promise<Rang
         : undefined;
 
     const candidateWiderStructure = // maybe this is the last line of a function, or some structure with a single bracket/brace
-    candidateStructure && candidateStructure.parent
+        candidateStructure && candidateStructure.parent
             ? expandSelectionRangeUntilFullLines(document, candidateStructure.parent)
             : undefined;
 
@@ -145,7 +144,10 @@ async function findStructure(document: TextDocument, line: number): Promise<Rang
     return (await findFullLineSelectionRangeUsingLineEnd(document, line))?.range;
 }
 
-async function findFullLineSelectionRangeUsingLineEnd(document: TextDocument, line: number): Promise<SelectionRange | undefined> {
+async function findFullLineSelectionRangeUsingLineEnd(
+    document: TextDocument,
+    line: number,
+): Promise<SelectionRange | undefined> {
     if (document.lineAt(line).isEmptyOrWhitespace) {
         return document.lineAt(line);
     }
@@ -155,7 +157,10 @@ async function findFullLineSelectionRangeUsingLineEnd(document: TextDocument, li
     return expandSelectionRangeUntilFullLines(document, selectionRange);
 }
 
-async function findFullLineSelectionRangeUsingLineStart(document: TextDocument, line: number): Promise<SelectionRange | undefined> {
+async function findFullLineSelectionRangeUsingLineStart(
+    document: TextDocument,
+    line: number,
+): Promise<SelectionRange | undefined> {
     if (document.lineAt(line).isEmptyOrWhitespace) {
         return document.lineAt(line);
     }
