@@ -14,13 +14,13 @@ export function activate(context: ExtensionContext) {
             const documentVersion = editor.document.version;
             const cursorPosition = editor.selection.active;
 
-            const sourceStructure = await findStructureFromLastLine(editor.document, cursorPosition.line);
+            const sourceStructure = await findStructure(editor.document, cursorPosition.line);
 
             if (!sourceStructure) {
                 return;
             }
 
-            const targetStructure = await findStructureFromLastLine(editor.document, sourceStructure.end.line + 1);
+            const targetStructure = await findStructure(editor.document, sourceStructure.end.line + 1);
 
             if (!targetStructure) {
                 return;
@@ -64,13 +64,13 @@ export function activate(context: ExtensionContext) {
             const documentVersion = editor.document.version;
             const cursorPosition = editor.selection.active;
 
-            const sourceStructure = await findStructureFromLastLine(editor.document, cursorPosition.line);
+            const sourceStructure = await findStructure(editor.document, cursorPosition.line);
 
             if (!sourceStructure) {
                 return;
             }
 
-            const targetStructure = await findStructureFromLastLine(editor.document, sourceStructure.start.line - 1);
+            const targetStructure = await findStructure(editor.document, sourceStructure.start.line - 1);
 
             if (!targetStructure) {
                 return;
@@ -103,7 +103,7 @@ export function activate(context: ExtensionContext) {
     );
 }
 
-async function findStructureFromLastLine(document: TextDocument, line: number): Promise<Range | undefined> {
+async function findStructure(document: TextDocument, line: number): Promise<Range | undefined> {
     if (document.lineAt(line).isEmptyOrWhitespace) {
         return document.lineAt(line).range;
     }
