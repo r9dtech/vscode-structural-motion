@@ -1,4 +1,4 @@
-import { assert } from 'console';
+import assert from 'assert';
 import { ExtensionContext, commands, window, SelectionRange, Range, TextDocument } from 'vscode';
 
 export function activate(context: ExtensionContext) {
