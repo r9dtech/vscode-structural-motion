@@ -114,7 +114,7 @@ async function findStructureFromLastLine(document: TextDocument, line: number): 
         ? await findFullLineSelectionRangeUsingLineEnd(document, candidateStructure.range.start.line)
         : undefined;
 
-    const candidateWiderStructure =
+    const candidateWiderStructure = // maybe this is the last line of a function, or some structure with a single bracket/brace
     candidateStructure && candidateStructure.parent
             ? expandSelectionRangeUntilFullLines(document, candidateStructure.parent)
             : undefined;
