@@ -35,28 +35,22 @@ export function activate(context: ExtensionContext) {
                 return;
             }
 
-            const fullSourceRange = sourceStructure.union(
-                editor.document.lineAt(sourceStructure.end.line).rangeIncludingLineBreak,
-            );
+            const intersection = sourceStructure.intersection(targetStructure);
 
-            const fullTargetRange = targetStructure.union(
-                editor.document.lineAt(targetStructure.end.line).rangeIncludingLineBreak,
-            );
-
-            const intersection = fullSourceRange.intersection(fullTargetRange);
-
-            if (!intersection?.isEmpty) {
+            if (intersection && !intersection.isEmpty) {
                 return;
             }
+            const between = new Range(sourceStructure.end, targetStructure.start);
 
             await editor.edit((eb) => {
                 if (editor.document.uri !== documentUri || editor.document.version !== documentVersion) {
                     console.error('structural-motion not applying change as document has changed');
                     return;
                 }
-                eb.delete(fullTargetRange);
-                const targetText = editor.document.getText(fullTargetRange);
-                eb.insert(fullSourceRange.start, targetText);
+                const targetText = editor.document.getText(targetStructure);
+                const betweenText = editor.document.getText(between);
+                eb.delete(targetStructure.union(between));
+                eb.insert(sourceStructure.start, targetText + betweenText);
             });
         }),
     );
@@ -84,28 +78,23 @@ export function activate(context: ExtensionContext) {
                 return;
             }
 
-            const fullSourceRange = sourceStructure.union(
-                editor.document.lineAt(sourceStructure.end.line).rangeIncludingLineBreak,
-            );
+            const intersection = sourceStructure.intersection(targetStructure);
 
-            const fullTargetRange = targetStructure.union(
-                editor.document.lineAt(targetStructure.end.line).rangeIncludingLineBreak,
-            );
-
-            const intersection = fullSourceRange.intersection(fullTargetRange);
-
-            if (!intersection?.isEmpty) {
+            if (intersection && !intersection.isEmpty) {
                 return;
             }
+
+            const between = new Range(targetStructure.end, sourceStructure.start);
 
             await editor.edit((eb) => {
                 if (editor.document.uri !== documentUri || editor.document.version !== documentVersion) {
                     console.error('structural-motion not applying change as document has changed');
                     return;
                 }
-                const targetText = editor.document.getText(fullTargetRange);
-                eb.insert(fullSourceRange.end, targetText);
-                eb.delete(fullTargetRange);
+                const targetText = editor.document.getText(targetStructure);
+                const betweenText = editor.document.getText(between);
+                eb.insert(sourceStructure.end, betweenText + targetText);
+                eb.delete(targetStructure.union(between));
             });
         }),
     );
