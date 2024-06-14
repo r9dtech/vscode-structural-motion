@@ -5,81 +5,99 @@ import * as path from 'path';
 
 import * as vscode from 'vscode';
 
-const tsFixtureFolders = readdirSync(path.resolve(__dirname, '../../testFixture/ts'), { withFileTypes: true })
-    .filter((dirent) => dirent.isDirectory())
-    .map((dirent) => dirent.name);
+type Language = {
+    name: string;
+    extension: string;
+    cursorPlaceholder: string;
+};
 
-const cursorPlaceholder = '/*cursor*/';
+const languages: Language[] = [
+    {
+        name: 'typescript',
+        extension: '.ts',
+        cursorPlaceholder: '/*cursor*/',
+    },
+];
 
-suite('Extension Test Suite', () => {
-    afterEach(async () => {
-        await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
-    });
+languages.forEach((language) => {
+    const fixtureFolders = readdirSync(path.resolve(__dirname, '../../testFixture', language.name), {
+        withFileTypes: true,
+    })
+        .filter((dirent) => dirent.isDirectory())
+        .map((dirent) => dirent.name);
 
-    tsFixtureFolders.forEach((tsFixtureFolder) => {
-        const fixturePath = path.resolve(__dirname, '../../testFixture', 'ts', tsFixtureFolder);
-
-        test(`Move Down .ts fixture: ${tsFixtureFolder}`, async () => {
-            const expectedResult = readFileSync(path.join(path.join(fixturePath, 'result.ts')), { encoding: 'utf-8' });
-
-            const editor = await openFile(path.join(fixturePath, 'before.ts'));
-
-            await goToCursor(editor);
-
-            await vscode.commands.executeCommand('structural-motion.moveStructureDown');
-
-            assert.equal(expectedResult, editor.document.getText());
+    suite(`Fixtures for ${language.name}`, () => {
+        afterEach(async () => {
+            await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
         });
 
-        test(`Move Up .ts fixture: ${tsFixtureFolder}`, async () => {
-            const expectedResult = readFileSync(path.join(path.join(fixturePath, 'before.ts')), {
-                encoding: 'utf-8',
-            }).replace(cursorPlaceholder, '');
+        fixtureFolders.forEach((fixtureFolder) => {
+            const fixturePath = path.resolve(__dirname, '../../testFixture', language.name, fixtureFolder);
 
-            const editor = await openFile(path.join(fixturePath, 'before.ts'));
+            test(`Fixture: ${fixtureFolder} - move down`, async () => {
+                const expectedResult = readFileSync(path.join(path.join(fixturePath, `result${language.extension}`)), {
+                    encoding: 'utf-8',
+                });
 
-            await goToCursor(editor);
+                const editor = await openFile(path.join(fixturePath, `before${language.extension}`));
 
-            await vscode.commands.executeCommand('structural-motion.moveStructureDown');
-            await vscode.commands.executeCommand('structural-motion.moveStructureUp');
+                await goToCursor(editor);
 
-            assert.equal(expectedResult, editor.document.getText());
-        });
-    });
-});
+                await vscode.commands.executeCommand('structural-motion.moveStructureDown');
 
-async function openFile(filePath: string): Promise<vscode.TextEditor> {
-    const document = await vscode.workspace.openTextDocument(filePath);
-
-    await vscode.window.showTextDocument(document);
-    await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
-    await vscode.window.showTextDocument(document);
-
-    const editor = vscode.window.activeTextEditor;
-
-    if (editor?.document.uri.path !== filePath) {
-        assert.fail('Editor did not open');
-    }
-    return editor;
-}
-
-async function goToCursor(editor: vscode.TextEditor) {
-    for (let index = 0; index < editor.document.lineCount; index++) {
-        const line = editor.document.lineAt(index).text;
-        const cursorStartsAt = line.indexOf(cursorPlaceholder);
-        if (cursorStartsAt >= 0) {
-            const cursorPosition = new vscode.Position(index, cursorStartsAt);
-            await editor.edit((eb) => {
-                eb.delete(
-                    new vscode.Range(
-                        cursorPosition,
-                        cursorPosition.with({ character: cursorPosition.character + cursorPlaceholder.length }),
-                    ),
-                );
+                assert.equal(expectedResult, editor.document.getText());
             });
-            editor.selections = [new vscode.Selection(cursorPosition, cursorPosition)];
-            return;
+
+            test(`Fixture: ${fixtureFolder} - move up`, async () => {
+                const expectedResult = readFileSync(path.join(path.join(fixturePath, `before${language.extension}`)), {
+                    encoding: 'utf-8',
+                }).replace(language.cursorPlaceholder, '');
+
+                const editor = await openFile(path.join(fixturePath, `before${language.extension}`));
+
+                await goToCursor(editor);
+
+                await vscode.commands.executeCommand('structural-motion.moveStructureDown');
+                await vscode.commands.executeCommand('structural-motion.moveStructureUp');
+
+                assert.equal(expectedResult, editor.document.getText());
+            });
+        });
+    });
+
+    async function openFile(filePath: string): Promise<vscode.TextEditor> {
+        const document = await vscode.workspace.openTextDocument(filePath);
+
+        await vscode.window.showTextDocument(document);
+        await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
+        await vscode.window.showTextDocument(document);
+
+        const editor = vscode.window.activeTextEditor;
+
+        if (editor?.document.uri.path !== filePath) {
+            assert.fail('Editor did not open');
         }
+        return editor;
     }
-    assert.fail(`could not find ${cursorPlaceholder} in ${editor.document.uri.toString()}`);
-}
+
+    async function goToCursor(editor: vscode.TextEditor) {
+        for (let index = 0; index < editor.document.lineCount; index++) {
+            const line = editor.document.lineAt(index).text;
+            const cursorStartsAt = line.indexOf(language.cursorPlaceholder);
+            if (cursorStartsAt >= 0) {
+                const cursorPosition = new vscode.Position(index, cursorStartsAt);
+                await editor.edit((eb) => {
+                    eb.delete(
+                        new vscode.Range(
+                            cursorPosition,
+                            cursorPosition.with({ character: cursorPosition.character + language.cursorPlaceholder.length }),
+                        ),
+                    );
+                });
+                editor.selections = [new vscode.Selection(cursorPosition, cursorPosition)];
+                return;
+            }
+        }
+        assert.fail(`could not find ${language.cursorPlaceholder} in ${editor.document.uri.toString()}`);
+    }
+});
