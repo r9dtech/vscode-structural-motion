@@ -9,13 +9,21 @@ type Language = {
     name: string;
     extension: string;
     cursorPlaceholder: string;
+    slowLanguagePlugin: boolean;
 };
 
 const languages: Language[] = [
     {
+        name: 'html',
+        extension: '.html',
+        cursorPlaceholder: '<!--cursor-->',
+        slowLanguagePlugin: true,
+    },
+    {
         name: 'typescript',
         extension: '.ts',
         cursorPlaceholder: '/*cursor*/',
+        slowLanguagePlugin: false,
     },
 ];
 
@@ -43,6 +51,11 @@ languages.forEach((language) => {
 
                 await goToCursor(editor);
 
+                if (language.slowLanguagePlugin) {
+                    // Allow slow plugins to parse the file
+                    await new Promise(r => setTimeout(r, 500));
+                }
+                
                 await vscode.commands.executeCommand('structural-motion.moveStructureDown');
 
                 assert.equal(expectedResult, editor.document.getText());

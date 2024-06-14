@@ -109,10 +109,10 @@ async function findStructure(document: TextDocument, line: number): Promise<Rang
 
     const symbolsPromise = getSymbolInformation(document);
 
-    const [selectionRangesFromLineStart, selectionRangesFromLineEnd] = await getSelectionRanges(document, [
+    const [selectionRangesFromLineStart] = await getSelectionRanges(document, [
         new Position(line, docLine.firstNonWhitespaceCharacterIndex),
-        document.lineAt(line).range.end,
     ]);
+    const [selectionRangesFromLineEnd] = await getSelectionRanges(document, [document.lineAt(line).range.end]);
 
     const upwardsRanges = extractFullLineRanges(document, selectionRangesFromLineStart).filter(
         (r) => r.end.line === line,
@@ -184,15 +184,20 @@ function rangeMatchesSymbol(range: Range, symbols: DocumentSymbol[]): boolean {
 }
 
 async function getSelectionRanges(document: TextDocument, positions: Position[]): Promise<SelectionRange[]> {
-    const result = await commands.executeCommand<SelectionRange[]>(
-        'vscode.executeSelectionRangeProvider',
-        document.uri,
-        positions,
+    const result = await Promise.all(
+        // There is a bug/behaviour (e.g. for HTML) where the provider doesn't respond correctly if we request multiple positions
+        // Instead it just sends the full doc range back
+        // So instead, dispatch each position request in parallell
+        positions.map((position) =>
+            commands.executeCommand<SelectionRange[]>('vscode.executeSelectionRangeProvider', document.uri, [position]),
+        ),
     );
-    assert(result instanceof Array);
-    assert(result.every((sr) => sr instanceof SelectionRange));
-    assert(result.length === positions.length);
-    return result;
+    for (const sra of result) {
+        assert(sra instanceof Array);
+        assert(sra.every((sr) => sr instanceof SelectionRange));
+        assert(sra.length === 1);
+    }
+    return result.flatMap((sr) => sr);
 }
 
 async function getSymbolInformation(document: TextDocument): Promise<DocumentSymbol[]> {
