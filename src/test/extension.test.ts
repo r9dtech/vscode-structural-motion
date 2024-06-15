@@ -70,10 +70,13 @@ languages.forEach((language) => {
 
                 await goToCursor(editor);
 
+                const selections = editor.selections;
+
                 await vscode.commands.executeCommand('structural-motion.moveStructureDown');
                 await vscode.commands.executeCommand('structural-motion.moveStructureUp');
 
                 assert.equal(expectedResult, editor.document.getText());
+                assert.equal(JSON.stringify(selections), JSON.stringify(editor.selections));
             });
         });
     });

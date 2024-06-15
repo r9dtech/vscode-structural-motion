@@ -8,6 +8,7 @@ import {
     TextDocument,
     DocumentSymbol,
     Position,
+    Selection,
 } from 'vscode';
 
 export function activate(context: ExtensionContext) {
@@ -52,6 +53,11 @@ export function activate(context: ExtensionContext) {
                 eb.delete(targetStructure.union(between));
                 eb.insert(sourceStructure.start, targetText + betweenText);
             });
+
+            const newCursorPosition = cursorPosition.with({
+                line: cursorPosition.line + (targetStructure.end.line - targetStructure.start.line + 1),
+            });
+            editor.selections = [new Selection(newCursorPosition, newCursorPosition)];
         }),
     );
     context.subscriptions.push(
@@ -96,6 +102,10 @@ export function activate(context: ExtensionContext) {
                 eb.insert(sourceStructure.end, betweenText + targetText);
                 eb.delete(targetStructure.union(between));
             });
+            const newCursorPosition = cursorPosition.with({
+                line: cursorPosition.line - (targetStructure.end.line - targetStructure.start.line + 1),
+            });
+            editor.selections = [new Selection(newCursorPosition, newCursorPosition)];
         }),
     );
 }
