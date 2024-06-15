@@ -14,6 +14,12 @@ type Language = {
 
 const languages: Language[] = [
     {
+        name: 'css',
+        extension: '.css',
+        cursorPlaceholder: '/*cursor*/',
+        slowLanguagePlugin: false,
+    },
+    {
         name: 'html',
         extension: '.html',
         cursorPlaceholder: '<!--cursor-->',

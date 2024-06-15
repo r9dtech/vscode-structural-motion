@@ -162,7 +162,10 @@ async function findStructure(document: TextDocument, line: number): Promise<Rang
     }
 
     //if nothing, return the first downwardRange
-    return downwardRanges[0];
+    return (
+        downwardRanges[0] ?? // downward ranges do well because providers often give a multi-line range, whereas upward ranges do so less often
+        upwardsRanges[0] // upward ranges make a good fallback whene there were , e.g. in the case of css declarations (where eol selects the whole rule)
+    );
 }
 
 function extractFullLineRanges(document: TextDocument, selectionRange: SelectionRange): Range[] {
