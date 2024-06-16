@@ -18,14 +18,13 @@ jobs:
             - name: Cache Docker images
               uses: ScribeMD/docker-cache@0.5.0
               with:
-                  key: docker-${{ runner.os }}-${{ hashFiles('.devcontainer/Dockerfile') }}
-            
+                  key: docker-${{ runner.os }}-${{ hashFiles('.devcontainer/**') }}
+
             - name: Cache node_modules
               uses: actions/cache@v4
               with:
-                path: node_modules
-                key: ${{ hashFiles('.devcontainer/Dockerfile') }}-${{ runner.os }}-node_modules
-
+                  path: node_modules
+                  key: ${{ hashFiles('.devcontainer/Dockerfile') }}-${{ runner.os }}-node_modules
 
             - name: run tests
               uses: devcontainers/ci@v0.3
