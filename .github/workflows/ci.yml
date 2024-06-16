@@ -1,0 +1,26 @@
+name: CI
+on:
+    push:
+        branches:
+            - main
+    pull_request:
+        branches:
+            - main
+jobs:
+    tests:
+        name: Run test suite
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Check out code
+              uses: actions/checkout@v3
+
+            - name: Cache Docker images.
+              uses: ScribeMD/docker-cache@0.5.0
+              with:
+                  key: docker-${{ runner.os }}-${{ hashFiles('.devcontainer/Dockerfile') }}
+
+            - name: run tests
+              uses: devcontainers/ci@v0.3
+              with:
+                  runCmd: npm ci && xvfb-run npm run check
