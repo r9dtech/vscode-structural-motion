@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import { readFileSync, readdirSync } from 'fs';
-import { afterEach } from 'mocha';
+import { afterEach, before } from 'mocha';
 import * as path from 'path';
 
 import * as vscode from 'vscode';
@@ -9,27 +9,28 @@ type Language = {
     name: string;
     extension: string;
     cursorPlaceholder: string;
-    slowLanguagePlugin: boolean;
 };
 
 const languages: Language[] = [
     {
+        name: 'python',
+        extension: '.py',
+        cursorPlaceholder: '#cursor',
+    },
+    {
         name: 'css',
         extension: '.css',
         cursorPlaceholder: '/*cursor*/',
-        slowLanguagePlugin: false,
     },
     {
         name: 'html',
         extension: '.html',
         cursorPlaceholder: '<!--cursor-->',
-        slowLanguagePlugin: true,
     },
     {
         name: 'typescript',
         extension: '.ts',
         cursorPlaceholder: '/*cursor*/',
-        slowLanguagePlugin: false,
     },
 ];
 
@@ -41,6 +42,28 @@ languages.forEach((language) => {
         .map((dirent) => dirent.name);
 
     suite(`Fixtures for ${language.name}`, () => {
+        before(async () => {
+            console.log([1]);
+
+            const warmUpFile = path.resolve(
+                __dirname,
+                '../../testFixture',
+                language.name,
+                `ready${language.extension}`,
+            );
+
+            const editor = await openFile(warmUpFile);
+            let result: unknown = undefined;
+            while (!result) {
+                // Wait for symbols, which means the language plugin has initialised
+                result = await vscode.commands.executeCommand(
+                    'vscode.executeDocumentSymbolProvider',
+                    editor.document.uri,
+                );
+                await new Promise((r) => setTimeout(r, 300));
+            }
+        });
+
         afterEach(async () => {
             await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
         });
@@ -57,11 +80,6 @@ languages.forEach((language) => {
 
                 await goToCursor(editor);
 
-                if (language.slowLanguagePlugin) {
-                    // Allow slow plugins to parse the file
-                    await new Promise(r => setTimeout(r, 500));
-                }
-                
                 await vscode.commands.executeCommand('structural-motion.moveStructureDown');
 
                 assert.equal(expectedResult, editor.document.getText());
@@ -112,7 +130,9 @@ languages.forEach((language) => {
                     eb.delete(
                         new vscode.Range(
                             cursorPosition,
-                            cursorPosition.with({ character: cursorPosition.character + language.cursorPlaceholder.length }),
+                            cursorPosition.with({
+                                character: cursorPosition.character + language.cursorPlaceholder.length,
+                            }),
                         ),
                     );
                 });
