@@ -1,6 +1,6 @@
 # structural-motion README
 
-This is the README for your extension "structural-motion". After writing up a brief description, we recommend including the following sections.
+A VSCode plugin which allows you to move code structures (such as functions and classes) up and down with keyboard shortcuts.
 
 ## Features
 
