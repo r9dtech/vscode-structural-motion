@@ -24,13 +24,13 @@ jobs:
               uses: actions/cache@v4
               with:
                   path: node_modules
-                  key: ${{ hashFiles('package-lock.json') }}-${{ runner.os }}-node_modules
+                  key: node_modules-${{ hashFiles('package-lock.json') }}-${{ runner.os }}
 
             - name: Build Docker image
               run: docker build . -t ci-container -f .devcontainer/Dockerfile
 
             - name: Install dependencies
-              run: docker run -it -w /workspace -v.:/workspace ci-container npm ci
+              run: docker run -w /workspace -v.:/workspace ci-container npm ci
 
             - name: Run CI checks
-              run: docker run -it --init -w /workspace -v.:/workspace ci-container xvfb-run npm run check
+              run: docker run --init -w /workspace -v.:/workspace ci-container xvfb-run npm run check
