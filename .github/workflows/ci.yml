@@ -26,7 +26,11 @@ jobs:
                   path: node_modules
                   key: ${{ hashFiles('package-lock.json') }}-${{ runner.os }}-node_modules
 
-            - name: run tests
-              uses: devcontainers/ci@v0.3
-              with:
-                  runCmd: npm ci && xvfb-run npm run check
+            - name: Build Docker image
+              run: docker build . -t ci-container -f .devcontainer/Dockerfile
+
+            - name: Install dependencies
+              run: docker run -it -w /workspace -v.:/workspace ci-container npm ci
+
+            - name: Run CI checks
+              run: docker run -it --init -w /workspace -v.:/workspace ci-container xvfb-run npm run check
