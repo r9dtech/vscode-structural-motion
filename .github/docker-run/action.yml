@@ -1,8 +1,0 @@
-name: 'CI Docker Image Run'
-description: 'Run a command on the CI docker image'
-runs:
-  using: 'docker'
-  image: '../../.devcontainer/Dockerfile'
-  entrypoint: xvfb-run
-  args:
-    - npm install
