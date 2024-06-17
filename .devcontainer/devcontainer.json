@@ -24,7 +24,8 @@
                 "dbaeumer.vscode-eslint",
                 "ms-vscode.extension-test-runner",
                 "esbenp.prettier-vscode",
-                "ms-python.python"
+                "ms-python.python",
+                "streetsidesoftware.code-spell-checker"
             ]
         }
     }
