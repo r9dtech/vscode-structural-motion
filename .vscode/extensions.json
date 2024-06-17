@@ -4,7 +4,7 @@
 	"recommendations": [
 		"dbaeumer.vscode-eslint",
 		"ms-vscode.extension-test-runner",
-		"ms-python.python",
-		"esbenp.prettier-vscode"
+		"esbenp.prettier-vscode",
+		"ms-python.python"
 	]
 }

@@ -14,5 +14,5 @@ export default defineConfig({
     mocha: {
         timeout: 10 * 1000,
     },
-    installExtensions: ['ms-python.vscode-pylance', 'ms-python.vscode-pylance', 'ms-python.python'],
+    installExtensions: ['ms-python.python'],
 });
