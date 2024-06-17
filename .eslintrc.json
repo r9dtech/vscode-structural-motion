@@ -25,6 +25,7 @@
         "curly": "warn",
         "eqeqeq": "warn",
         "no-throw-literal": "warn",
+        "@typescript-eslint/no-unused-vars": "warn",
         "semi": "off"
     },
     "ignorePatterns": ["out", "dist", "**/*.d.ts", "testFixture"]
