@@ -143,16 +143,16 @@ async function findStructure(document: TextDocument, line: number): Promise<Rang
     }
 
     // check the non-single-line upwardRanges to see if any of them have an equivalent downward range - implying they are a complete structure
-    const nonSinleLineUpwardRanges = upwardsRanges.filter((range) => !range.isSingleLine);
+    const nonSingleLineUpwardRanges = upwardsRanges.filter((range) => !range.isSingleLine);
 
-    const nonSingleLineUpwardRangeStarts = nonSinleLineUpwardRanges.map((range) =>
+    const nonSingleLineUpwardRangeStarts = nonSingleLineUpwardRanges.map((range) =>
         range.start.with({ character: document.lineAt(range.start.line).range.end.character }),
     );
 
     const upwardRangeCheckSelectionRanges = await getSelectionRanges(document, nonSingleLineUpwardRangeStarts);
 
     for (let index = 0; index < upwardRangeCheckSelectionRanges.length; index++) {
-        const upwardRange = nonSinleLineUpwardRanges[index];
+        const upwardRange = nonSingleLineUpwardRanges[index];
         const checkSelectionRange = upwardRangeCheckSelectionRanges[index];
         const checkRanges = extractFullLineRanges(document, checkSelectionRange);
         if (checkRanges[0]?.isEqual(upwardRange)) {
@@ -164,7 +164,7 @@ async function findStructure(document: TextDocument, line: number): Promise<Rang
     //if nothing, return the first downwardRange
     return (
         downwardRanges[0] ?? // downward ranges do well because providers often give a multi-line range, whereas upward ranges do so less often
-        upwardsRanges[0] // upward ranges make a good fallback whene there were , e.g. in the case of css declarations (where eol selects the whole rule)
+        upwardsRanges[0] // upward ranges make a good fallback when there were , e.g. in the case of css declarations (where eol selects the whole rule)
     );
 }
 
@@ -200,7 +200,7 @@ async function getSelectionRanges(document: TextDocument, positions: Position[])
     const result = await Promise.all(
         // There is a bug/behaviour (e.g. for HTML) where the provider doesn't respond correctly if we request multiple positions
         // Instead it just sends the full doc range back
-        // So instead, dispatch each position request in parallell
+        // So instead, dispatch each position request in parallel
         positions.map((position) =>
             commands.executeCommand<SelectionRange[]>('vscode.executeSelectionRangeProvider', document.uri, [position]),
         ),
