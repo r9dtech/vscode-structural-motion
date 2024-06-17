@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { readFileSync, readdirSync } from 'fs';
+import { existsSync, readFileSync, readdirSync } from 'fs';
 import { afterEach, before } from 'mocha';
 import * as path from 'path';
 
@@ -12,6 +12,11 @@ type Language = {
 };
 
 const languages: Language[] = [
+    {
+        name: 'bash',
+        extension: '.sh',
+        cursorPlaceholder: '#cursor',
+    },
     {
         name: 'python',
         extension: '.py',
@@ -52,8 +57,14 @@ languages.forEach((language) => {
                 `ready${language.extension}`,
             );
 
+            if (!existsSync(warmUpFile)) {
+                return;
+            }
+
             const editor = await openFile(warmUpFile);
+
             let result: unknown = undefined;
+
             while (!result) {
                 // Wait for symbols, which means the language plugin has initialised
                 result = await vscode.commands.executeCommand(
