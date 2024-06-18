@@ -119,16 +119,17 @@ async function findStructure(document: TextDocument, line: number): Promise<Rang
 
     const symbolsPromise = getSymbolInformation(document);
 
-    const [selectionRangesFromLineStart] = await getSelectionRanges(document, [
+    const selectionRangesFromLineStart = getSelectionRanges(
+        document,
         new Position(line, docLine.firstNonWhitespaceCharacterIndex),
-    ]);
-    const [selectionRangesFromLineEnd] = await getSelectionRanges(document, [document.lineAt(line).range.end]);
+    );
+    const selectionRangesFromLineEnd = getSelectionRanges(document, document.lineAt(line).range.end);
 
-    const upwardsRanges = extractFullLineRanges(document, selectionRangesFromLineStart).filter(
+    const upwardsRanges = extractFullLineRanges(document, await selectionRangesFromLineStart).filter(
         (r) => r.end.line === line,
     );
 
-    const downwardRanges = extractFullLineRanges(document, selectionRangesFromLineEnd).filter(
+    const downwardRanges = extractFullLineRanges(document, await selectionRangesFromLineEnd).filter(
         (r) => r.start.line === line,
     );
 
@@ -143,21 +144,17 @@ async function findStructure(document: TextDocument, line: number): Promise<Rang
     }
 
     // check the non-single-line upwardRanges to see if any of them have an equivalent downward range - implying they are a complete structure
-    const nonSingleLineUpwardRanges = upwardsRanges.filter((range) => !range.isSingleLine);
+    const firstNonSingleLineUpwardRange = upwardsRanges.find((range) => !range.isSingleLine);
 
-    const nonSingleLineUpwardRangeStarts = nonSingleLineUpwardRanges.map((range) =>
-        range.start.with({ character: document.lineAt(range.start.line).range.end.character }),
-    );
-
-    const upwardRangeCheckSelectionRanges = await getSelectionRanges(document, nonSingleLineUpwardRangeStarts);
-
-    for (let index = 0; index < upwardRangeCheckSelectionRanges.length; index++) {
-        const upwardRange = nonSingleLineUpwardRanges[index];
-        const checkSelectionRange = upwardRangeCheckSelectionRanges[index];
-        const checkRanges = extractFullLineRanges(document, checkSelectionRange);
-        if (checkRanges[0]?.isEqual(upwardRange)) {
+    if (firstNonSingleLineUpwardRange) {
+        const nonSingleLineUpwardRangeStart = firstNonSingleLineUpwardRange.start.with({
+            character: document.lineAt(firstNonSingleLineUpwardRange.start.line).range.end.character,
+        });
+        const upwardRangeCheckSelectionRange = await getSelectionRanges(document, nonSingleLineUpwardRangeStart);
+        const checkRanges = extractFullLineRanges(document, upwardRangeCheckSelectionRange);
+        if (checkRanges[0]?.isEqual(firstNonSingleLineUpwardRange)) {
             // first expansion in JS tends to match - e.g. multi-line-string
-            return upwardRange;
+            return firstNonSingleLineUpwardRange;
         }
     }
 
@@ -196,21 +193,21 @@ function rangeMatchesSymbol(range: Range, symbols: DocumentSymbol[]): boolean {
     return false;
 }
 
-async function getSelectionRanges(document: TextDocument, positions: Position[]): Promise<SelectionRange[]> {
-    const result = await Promise.all(
-        // There is a bug/behaviour (e.g. for HTML) where the provider doesn't respond correctly if we request multiple positions
-        // Instead it just sends the full doc range back
-        // So instead, dispatch each position request in parallel
-        positions.map((position) =>
-            commands.executeCommand<SelectionRange[]>('vscode.executeSelectionRangeProvider', document.uri, [position]),
-        ),
+async function getSelectionRanges(document: TextDocument, position: Position): Promise<SelectionRange> {
+    const result = await commands.executeCommand<SelectionRange[]>(
+        'vscode.executeSelectionRangeProvider',
+        document.uri,
+        [
+            // There is a bug/behaviour (e.g. for HTML) where the provider doesn't respond correctly if we request multiple positions
+            // Instead it just sends the full doc range back
+            // So only allow one position at a time here.
+            position,
+        ],
     );
-    for (const sra of result) {
-        assert(sra instanceof Array);
-        assert(sra.every((sr) => sr instanceof SelectionRange));
-        assert(sra.length === 1);
-    }
-    return result.flatMap((sr) => sr);
+    assert(result instanceof Array);
+    assert(result.length === 1);
+    assert(result[0] instanceof SelectionRange);
+    return result[0];
 }
 
 async function getSymbolInformation(document: TextDocument): Promise<DocumentSymbol[]> {
