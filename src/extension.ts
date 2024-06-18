@@ -25,13 +25,15 @@ export function activate(context: ExtensionContext) {
             const documentVersion = editor.document.version;
             const cursorPosition = editor.selection.active;
 
-            const sourceStructure = await findStructure(editor.document, cursorPosition.line);
+            const symbolsPromise = getSymbolInformation(editor.document);
+
+            const sourceStructure = await findStructure(editor.document, cursorPosition.line, symbolsPromise);
 
             if (!sourceStructure) {
                 return;
             }
 
-            const targetStructure = await findStructure(editor.document, sourceStructure.end.line + 1);
+            const targetStructure = await findStructure(editor.document, sourceStructure.end.line + 1, symbolsPromise);
 
             if (!targetStructure) {
                 return;
@@ -73,13 +75,19 @@ export function activate(context: ExtensionContext) {
             const documentVersion = editor.document.version;
             const cursorPosition = editor.selection.active;
 
-            const sourceStructure = await findStructure(editor.document, cursorPosition.line);
+            const symbolsPromise = getSymbolInformation(editor.document);
+
+            const sourceStructure = await findStructure(editor.document, cursorPosition.line, symbolsPromise);
 
             if (!sourceStructure) {
                 return;
             }
 
-            const targetStructure = await findStructure(editor.document, sourceStructure.start.line - 1);
+            const targetStructure = await findStructure(
+                editor.document,
+                sourceStructure.start.line - 1,
+                symbolsPromise,
+            );
 
             if (!targetStructure) {
                 return;
@@ -111,14 +119,16 @@ export function activate(context: ExtensionContext) {
     );
 }
 
-async function findStructure(document: TextDocument, line: number): Promise<Range | undefined> {
+async function findStructure(
+    document: TextDocument,
+    line: number,
+    symbolsPromise: Promise<DocumentSymbol[]>,
+): Promise<Range | undefined> {
     if (document.lineAt(line).isEmptyOrWhitespace) {
         return document.lineAt(line).range;
     }
 
     const docLine = document.lineAt(line);
-
-    const symbolsPromise = getSymbolInformation(document);
 
     const selectionRangesFromLineStart = getSelectionRanges(
         document,
