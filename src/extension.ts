@@ -9,6 +9,7 @@ import {
     DocumentSymbol,
     Position,
     Selection,
+    SymbolInformation,
 } from 'vscode';
 
 export function activate(context: ExtensionContext) {
@@ -194,7 +195,7 @@ function rangeMatchesSymbol(range: Range, symbols: DocumentSymbol[]): boolean {
 }
 
 async function getSelectionRanges(document: TextDocument, position: Position): Promise<SelectionRange> {
-    const result = await commands.executeCommand<SelectionRange[]>(
+    const result = await commands.executeCommand<SelectionRange[] | null | undefined>(
         'vscode.executeSelectionRangeProvider',
         document.uri,
         [
@@ -204,20 +205,18 @@ async function getSelectionRanges(document: TextDocument, position: Position): P
             position,
         ],
     );
-    assert(result instanceof Array);
-    assert(result.length === 1);
-    assert(result[0] instanceof SelectionRange);
+    assert(result && result[0]);
     return result[0];
 }
 
-async function getSymbolInformation(document: TextDocument): Promise<DocumentSymbol[]> {
-    const result = await commands.executeCommand<DocumentSymbol[] | undefined | null>(
-        'vscode.executeDocumentSymbolProvider',
-        document.uri,
-    );
-    assert(!result || result instanceof Array);
-    // assert(result.every((r) => r instanceof DocumentSymbol)); TODO: this is some kind of weird lie!
-    return result ?? [];
+async function getSymbolInformation(document: TextDocument): Promise<(DocumentSymbol & SymbolInformation)[]> {
+    const result =
+        (await commands.executeCommand<
+            // contrary to documentation, vscode returns a class which is a merge of these two types
+            (SymbolInformation & DocumentSymbol)[] | null | undefined
+        >('vscode.executeDocumentSymbolProvider', document.uri)) ?? [];
+    assert(result instanceof Array);
+    return result;
 }
 
 function isFullLineSelection(document: TextDocument, range: Range): boolean {
