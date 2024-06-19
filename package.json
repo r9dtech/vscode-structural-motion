@@ -41,12 +41,11 @@
         "vscode:prepublish": "npm run compile",
         "compile": "tsc -p ./",
         "watch": "tsc -watch -p ./",
-        "pretest": "npm run compile && npm run lint",
         "lint": "eslint src --ext ts --max-warnings=0",
-        "test": "vscode-test",
+        "test": "npm run compile && vscode-test",
         "format:check": "prettier . --check",
         "format:fix": "prettier . --write",
-        "check": "npm run format:check && npm run test"
+        "check": "npm run lint && npm run format:check && npm run test"
     },
     "devDependencies": {
         "@types/mocha": "^10.0.6",
