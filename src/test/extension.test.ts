@@ -4,6 +4,91 @@ import { afterEach, before } from 'mocha';
 import * as path from 'path';
 
 import * as vscode from 'vscode';
+import { isFullLineSelection } from '../extension';
+
+suite('Unit Tests', () => {
+    suite('isFullLineSelection', () => {
+        async function createDocument(content: string) {
+            return await vscode.workspace.openTextDocument({ content, language: 'typescript' });
+        }
+
+        function createRange(l1: number, c1: number, l2: number, c2: number): vscode.Range {
+            return new vscode.Range(new vscode.Position(l1, c1), new vscode.Position(l2, c2));
+        }
+
+        test('empty selection, empty file', async () => {
+            assert.strictEqual(isFullLineSelection(await createDocument(''), createRange(0, 0, 0, 0)), true);
+        });
+
+        test('full line selection without newline', async () => {
+            assert.strictEqual(
+                isFullLineSelection(await createDocument('line\nline\nline'), createRange(1, 0, 1, 4)),
+                true,
+            );
+        });
+
+        test('full line selection with line break', async () => {
+            const document = await createDocument('line\nline\nline');
+            assert.strictEqual(isFullLineSelection(document, document.lineAt(1).rangeIncludingLineBreak), false);
+        });
+
+        test('full line selection with too-high char', async () => {
+            assert.strictEqual(
+                isFullLineSelection(await createDocument('line\nline\nline'), createRange(1, 0, 1, 999)),
+                true,
+            );
+        });
+
+        test('multi line selection before line break', async () => {
+            assert.strictEqual(
+                isFullLineSelection(await createDocument('line\nline\nline'), createRange(0, 0, 1, 4)),
+                true,
+            );
+        });
+
+        test('multi line selection before no line break', async () => {
+            assert.strictEqual(
+                isFullLineSelection(await createDocument('line\nline\nline'), createRange(1, 0, 2, 4)),
+                true,
+            );
+        });
+
+        test('empty selection, nonempty line', async () => {
+            assert.strictEqual(
+                isFullLineSelection(await createDocument('line\nline\nline'), createRange(1, 0, 1, 0)),
+                false,
+            );
+        });
+
+        test('missing line start', async () => {
+            assert.strictEqual(
+                isFullLineSelection(await createDocument('line\nline\nline'), createRange(1, 1, 1, 4)),
+                false,
+            );
+        });
+
+        test('missing line end', async () => {
+            assert.strictEqual(
+                isFullLineSelection(await createDocument('line\nline\nline'), createRange(1, 0, 1, 3)),
+                false,
+            );
+        });
+
+        test('missing fisrt line start', async () => {
+            assert.strictEqual(
+                isFullLineSelection(await createDocument('line\nline\nline'), createRange(0, 1, 1, 4)),
+                false,
+            );
+        });
+
+        test('missing las line end', async () => {
+            assert.strictEqual(
+                isFullLineSelection(await createDocument('line\nline\nline'), createRange(0, 0, 1, 3)),
+                false,
+            );
+        });
+    });
+});
 
 type Language = {
     name: string;

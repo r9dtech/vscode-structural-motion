@@ -229,7 +229,7 @@ async function getSymbolInformation(document: TextDocument): Promise<(DocumentSy
     return result;
 }
 
-function isFullLineSelection(document: TextDocument, range: Range): boolean {
+export function isFullLineSelection(document: TextDocument, range: Range): boolean {
     return (
         range.contains(document.lineAt(range.start.line).range) && range.contains(document.lineAt(range.end.line).range)
     );
