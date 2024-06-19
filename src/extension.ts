@@ -63,6 +63,7 @@ export function activate(context: ExtensionContext) {
             editor.selections = [new Selection(newCursorPosition, newCursorPosition)];
         }),
     );
+
     context.subscriptions.push(
         commands.registerCommand('structural-motion.moveStructureUp', async () => {
             const editor = window.activeTextEditor;
@@ -124,17 +125,21 @@ async function findStructure(
     line: number,
     symbolsPromise: Promise<DocumentSymbol[]>,
 ): Promise<Range | undefined> {
-    if (document.lineAt(line).isEmptyOrWhitespace) {
-        return document.lineAt(line).range;
+    if (!documentHasLine(document, line)) {
+        return;
     }
 
     const docLine = document.lineAt(line);
+
+    if (docLine.isEmptyOrWhitespace) {
+        return docLine.range;
+    }
 
     const selectionRangesFromLineStart = getSelectionRanges(
         document,
         new Position(line, docLine.firstNonWhitespaceCharacterIndex),
     );
-    const selectionRangesFromLineEnd = getSelectionRanges(document, document.lineAt(line).range.end);
+    const selectionRangesFromLineEnd = getSelectionRanges(document, docLine.range.end);
 
     const upwardsRanges = extractFullLineRanges(document, await selectionRangesFromLineStart).filter(
         (r) => r.end.line === line,
@@ -233,6 +238,10 @@ function isFullLineSelection(document: TextDocument, range: Range): boolean {
     return (
         range.contains(document.lineAt(range.start.line).range) && range.contains(document.lineAt(range.end.line).range)
     );
+}
+
+function documentHasLine(document: TextDocument, line: number): boolean {
+    return line >= 0 && line < document.lineCount;
 }
 
 export function deactivate() {
