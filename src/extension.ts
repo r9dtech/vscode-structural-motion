@@ -135,6 +135,12 @@ async function findStructure(
         return docLine.range;
     }
 
+    const symbols = await symbolsPromise;
+    const symbolStructure = findSymbolStartingOrEndingAt(document, symbols, line);
+    if (symbolStructure) {
+        return symbolStructure;
+    }
+
     const selectionRangesFromLineStart = getSelectionRanges(
         document,
         new Position(line, docLine.firstNonWhitespaceCharacterIndex),
@@ -152,7 +158,6 @@ async function findStructure(
     const sortedRanges = [...downwardRanges, ...upwardsRanges].sort(
         (a, b) => a.end.line - a.start.line - (b.end.line - b.start.line),
     );
-    const symbols = await symbolsPromise;
     for (const range of sortedRanges) {
         if (rangeMatchesSymbol(range, symbols)) {
             return range;
@@ -191,6 +196,32 @@ function extractFullLineRanges(document: TextDocument, selectionRange: Selection
         current = current.parent;
     }
     return results;
+}
+
+function findSymbolStartingOrEndingAt(
+    document: TextDocument,
+    symbols: DocumentSymbol[],
+    line: number,
+): Range | undefined {
+    const docLine = document.lineAt(line);
+    const lineRange = docLine.range;
+    const nonWhitespaceLineRange = lineRange.with({
+        start: lineRange.start.with({ character: docLine.firstNonWhitespaceCharacterIndex }),
+    });
+
+    for (const symbol of symbols) {
+        if (!symbol.range.contains(nonWhitespaceLineRange)) {
+            continue;
+        }
+        if (symbol.range.start.line === line || symbol.range.end.line === line) {
+            return symbol.range;
+        }
+        const foundInChild = findSymbolStartingOrEndingAt(document, symbol.children, line);
+        if (foundInChild) {
+            return foundInChild;
+        }
+    }
+    return;
 }
 
 function rangeMatchesSymbol(range: Range, symbols: DocumentSymbol[]): boolean {
