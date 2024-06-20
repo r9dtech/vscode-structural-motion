@@ -10,6 +10,7 @@ import {
     Position,
     Selection,
     SymbolInformation,
+    TextLine,
 } from 'vscode';
 
 export function activate(context: ExtensionContext) {
@@ -122,48 +123,47 @@ export function activate(context: ExtensionContext) {
 
 async function findStructure(
     document: TextDocument,
-    line: number,
+    lineNumber: number,
     symbolsPromise: Promise<DocumentSymbol[]>,
 ): Promise<Range | undefined> {
-    if (!documentHasLine(document, line)) {
+    if (!documentHasLine(document, lineNumber)) {
         return;
     }
-
-    const docLine = document.lineAt(line);
-
-    if (docLine.isEmptyOrWhitespace) {
-        return docLine.range;
-    }
+    const textLine = document.lineAt(lineNumber);
 
     const symbols = await symbolsPromise;
-    const symbolStructure = findSymbolStartingOrEndingAt(document, symbols, line);
-    if (symbolStructure) {
-        return symbolStructure;
-    }
 
     const selectionRangesFromLineStart = getSelectionRanges(
         document,
-        new Position(line, docLine.firstNonWhitespaceCharacterIndex),
+        new Position(lineNumber, textLine.firstNonWhitespaceCharacterIndex),
     );
-    const selectionRangesFromLineEnd = getSelectionRanges(document, docLine.range.end);
+    const selectionRangesFromLineEnd = getSelectionRanges(document, textLine.range.end);
 
     const upwardsRanges = extractFullLineRanges(document, await selectionRangesFromLineStart).filter(
-        (r) => r.end.line === line,
+        (r) => r.end.line === lineNumber,
     );
 
     const downwardRanges = extractFullLineRanges(document, await selectionRangesFromLineEnd).filter(
-        (r) => r.start.line === line,
+        (r) => r.start.line === lineNumber,
     );
 
-    const sortedRanges = [...downwardRanges, ...upwardsRanges].sort(
-        (a, b) => a.end.line - a.start.line - (b.end.line - b.start.line),
+    return (
+        findRangeMatchingEmptyLine(textLine) ??
+        findRangeFromSymbols(symbols, textLine) ??
+        (await findRangeFromUpwardsRangesWithMatchingDownwardRange(document, upwardsRanges)) ??
+        downwardRanges[0] ?? // downward ranges do well because providers often give a multi-line range, whereas upward ranges do so less often
+        upwardsRanges[0] // upward ranges make a good fallback when there were , e.g. in the case of css declarations (where eol selects the whole rule)
     );
-    for (const range of sortedRanges) {
-        if (rangeMatchesSymbol(range, symbols)) {
-            return range;
-        }
-    }
+}
 
+function findRangeMatchingEmptyLine(line: TextLine): Range | undefined {
+    return line.isEmptyOrWhitespace ? line.range : undefined;
+}
+
+async function findRangeFromUpwardsRangesWithMatchingDownwardRange(
+    document: TextDocument,
+    upwardsRanges: Range[],
+): Promise<Range | undefined> {
     // check the non-single-line upwardRanges to see if any of them have an equivalent downward range - implying they are a complete structure
     const firstNonSingleLineUpwardRange = upwardsRanges.find((range) => !range.isSingleLine);
 
@@ -175,15 +175,11 @@ async function findStructure(
         const checkRanges = extractFullLineRanges(document, upwardRangeCheckSelectionRange);
         if (checkRanges[0]?.isEqual(firstNonSingleLineUpwardRange)) {
             // first expansion in JS tends to match - e.g. multi-line-string
+            // this avoids matching e.g. partial method chain
             return firstNonSingleLineUpwardRange;
         }
     }
-
-    //if nothing, return the first downwardRange
-    return (
-        downwardRanges[0] ?? // downward ranges do well because providers often give a multi-line range, whereas upward ranges do so less often
-        upwardsRanges[0] // upward ranges make a good fallback when there were , e.g. in the case of css declarations (where eol selects the whole rule)
-    );
+    return;
 }
 
 function extractFullLineRanges(document: TextDocument, selectionRange: SelectionRange): Range[] {
@@ -198,46 +194,27 @@ function extractFullLineRanges(document: TextDocument, selectionRange: Selection
     return results;
 }
 
-function findSymbolStartingOrEndingAt(
-    document: TextDocument,
-    symbols: DocumentSymbol[],
-    line: number,
-): Range | undefined {
-    const docLine = document.lineAt(line);
-    const lineRange = docLine.range;
-    const nonWhitespaceLineRange = lineRange.with({
-        start: lineRange.start.with({ character: docLine.firstNonWhitespaceCharacterIndex }),
+function findRangeFromSymbols(symbols: DocumentSymbol[], textLine: TextLine): Range | undefined {
+    const nonWhitespaceLineRange = textLine.range.with({
+        start: textLine.range.start.with({ character: textLine.firstNonWhitespaceCharacterIndex }),
     });
 
     for (const symbol of symbols) {
         if (!symbol.range.contains(nonWhitespaceLineRange)) {
             continue;
         }
-        if (symbol.range.start.line === line || symbol.range.end.line === line) {
+        if (
+            symbol.range.start.line === textLine.range.start.line ||
+            symbol.range.end.line === textLine.range.start.line
+        ) {
             return symbol.range;
         }
-        const foundInChild = findSymbolStartingOrEndingAt(document, symbol.children, line);
+        const foundInChild = findRangeFromSymbols(symbol.children, textLine);
         if (foundInChild) {
             return foundInChild;
         }
     }
     return;
-}
-
-function rangeMatchesSymbol(range: Range, symbols: DocumentSymbol[]): boolean {
-    for (const symbol of symbols) {
-        // pretend the range covers the whole line, like for const `f = function()=>{}`, tho that might not always be true
-        const symbolRange = symbol.range.with({ start: symbol.range.start.with({ character: 0 }) });
-        if (symbolRange.isEqual(range)) {
-            return true;
-        }
-        if (symbolRange.contains(range)) {
-            if (rangeMatchesSymbol(range, symbol.children)) {
-                return true;
-            }
-        }
-    }
-    return false;
 }
 
 async function getSelectionRanges(document: TextDocument, position: Position): Promise<SelectionRange> {
