@@ -16,109 +16,89 @@ import {
 export function activate(context: ExtensionContext) {
     context.subscriptions.push(
         commands.registerCommand('structural-motion.moveStructureDown', async () => {
-            const editor = window.activeTextEditor;
-
-            if (!editor) {
-                return;
-            }
-
-            const documentUri = editor.document.uri;
-            const documentVersion = editor.document.version;
-            const cursorPosition = editor.selection.active;
-
-            const symbolsPromise = getSymbolInformation(editor.document);
-
-            const sourceStructure = await findStructure(editor.document, cursorPosition.line, symbolsPromise);
-
-            if (!sourceStructure) {
-                return;
-            }
-
-            const targetStructure = await findStructure(editor.document, sourceStructure.end.line + 1, symbolsPromise);
-
-            if (!targetStructure) {
-                return;
-            }
-
-            const intersection = sourceStructure.intersection(targetStructure);
-
-            if (intersection && !intersection.isEmpty) {
-                return;
-            }
-            const between = new Range(sourceStructure.end, targetStructure.start);
-
-            await editor.edit((eb) => {
-                if (editor.document.uri !== documentUri || editor.document.version !== documentVersion) {
-                    console.error('structural-motion not applying change as document has changed');
-                    return;
-                }
-                const targetText = editor.document.getText(targetStructure);
-                const betweenText = editor.document.getText(between);
-                eb.delete(targetStructure.union(between));
-                eb.insert(sourceStructure.start, targetText + betweenText);
-            });
-
-            const newCursorPosition = cursorPosition.with({
-                line: cursorPosition.line + (targetStructure.end.line - targetStructure.start.line + 1),
-            });
-            editor.selections = [new Selection(newCursorPosition, newCursorPosition)];
+            await moveStructure(1);
         }),
     );
 
     context.subscriptions.push(
         commands.registerCommand('structural-motion.moveStructureUp', async () => {
-            const editor = window.activeTextEditor;
-
-            if (!editor) {
-                return;
-            }
-
-            const documentUri = editor.document.uri;
-            const documentVersion = editor.document.version;
-            const cursorPosition = editor.selection.active;
-
-            const symbolsPromise = getSymbolInformation(editor.document);
-
-            const sourceStructure = await findStructure(editor.document, cursorPosition.line, symbolsPromise);
-
-            if (!sourceStructure) {
-                return;
-            }
-
-            const targetStructure = await findStructure(
-                editor.document,
-                sourceStructure.start.line - 1,
-                symbolsPromise,
-            );
-
-            if (!targetStructure) {
-                return;
-            }
-
-            const intersection = sourceStructure.intersection(targetStructure);
-
-            if (intersection && !intersection.isEmpty) {
-                return;
-            }
-
-            const between = new Range(targetStructure.end, sourceStructure.start);
-
-            await editor.edit((eb) => {
-                if (editor.document.uri !== documentUri || editor.document.version !== documentVersion) {
-                    console.error('structural-motion not applying change as document has changed');
-                    return;
-                }
-                const targetText = editor.document.getText(targetStructure);
-                const betweenText = editor.document.getText(between);
-                eb.insert(sourceStructure.end, betweenText + targetText);
-                eb.delete(targetStructure.union(between));
-            });
-            const newCursorPosition = cursorPosition.with({
-                line: cursorPosition.line - (targetStructure.end.line - targetStructure.start.line + 1),
-            });
-            editor.selections = [new Selection(newCursorPosition, newCursorPosition)];
+            await moveStructure(-1);
         }),
     );
+}
+
+async function moveStructure(lineDelta: -1 | 1) {
+    const editor = window.activeTextEditor;
+
+    if (!editor) {
+        return;
+    }
+
+    const documentUri = editor.document.uri;
+    const documentVersion = editor.document.version;
+    const cursorPosition = editor.selection.active;
+
+    const symbolsPromise = getSymbolInformation(editor.document);
+
+    const sourceStructure = await findStructure(editor.document, cursorPosition.line, symbolsPromise);
+
+    if (!sourceStructure) {
+        return;
+    }
+
+    const targetStructure = await findStructure(
+        editor.document,
+        {
+            [-1]: sourceStructure.start,
+            [1]: sourceStructure.end,
+        }[lineDelta].line + lineDelta,
+        symbolsPromise,
+    );
+
+    if (!targetStructure) {
+        return;
+    }
+
+    const intersection = sourceStructure.intersection(targetStructure);
+
+    if (intersection && !intersection.isEmpty) {
+        return;
+    }
+
+    const between = {
+        [-1]: () => new Range(targetStructure.end, sourceStructure.start),
+        [1]: () => new Range(sourceStructure.end, targetStructure.start),
+    }[lineDelta]();
+
+    await editor.edit((eb) => {
+        if (editor.document.uri !== documentUri || editor.document.version !== documentVersion) {
+            console.error('structural-motion not applying change as document has changed');
+            return;
+        }
+        const sourceText = editor.document.getText(sourceStructure);
+        const betweenText = editor.document.getText(between);
+        const targetText = editor.document.getText(targetStructure);
+        eb.delete(
+            {
+                [-1]: () => targetStructure.with({ end: sourceStructure.end }),
+                [1]: () => sourceStructure.with({ end: targetStructure.end }),
+            }[lineDelta](),
+        );
+        eb.insert(
+            {
+                [-1]: () => targetStructure,
+                [1]: () => sourceStructure,
+            }[lineDelta]().start,
+            {
+                [-1]: () => sourceText + betweenText + targetText,
+                [1]: () => targetText + betweenText + sourceText,
+            }[lineDelta](),
+        );
+    });
+    const newCursorPosition = cursorPosition.with({
+        line: cursorPosition.line + (targetStructure.end.line - targetStructure.start.line + 1) * lineDelta,
+    });
+    editor.selections = [new Selection(newCursorPosition, newCursorPosition)];
 }
 
 async function findStructure(
