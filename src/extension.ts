@@ -27,7 +27,7 @@ export function activate(context: ExtensionContext) {
     );
 }
 
-async function moveStructure(lineDelta: -1 | 1) {
+async function moveStructure(moveDirection: -1 | 1) {
     const editor = window.activeTextEditor;
 
     if (!editor) {
@@ -40,20 +40,21 @@ async function moveStructure(lineDelta: -1 | 1) {
 
     const symbolsPromise = getSymbolInformation(editor.document);
 
-    const sourceStructure = await findStructure(editor.document, cursorPosition.line, symbolsPromise);
+    const sourceLine = cursorPosition.line;
+
+    const sourceStructure = await findStructure(editor.document, sourceLine, symbolsPromise);
 
     if (!sourceStructure) {
         return;
     }
 
-    const targetStructure = await findStructure(
-        editor.document,
+    const targetLine =
         {
             [-1]: sourceStructure.start,
             [1]: sourceStructure.end,
-        }[lineDelta].line + lineDelta,
-        symbolsPromise,
-    );
+        }[moveDirection].line + moveDirection;
+
+    const targetStructure = await findStructure(editor.document, targetLine, symbolsPromise);
 
     if (!targetStructure) {
         return;
@@ -65,38 +66,26 @@ async function moveStructure(lineDelta: -1 | 1) {
         return;
     }
 
-    const between = {
-        [-1]: () => new Range(targetStructure.end, sourceStructure.start),
-        [1]: () => new Range(sourceStructure.end, targetStructure.start),
-    }[lineDelta]();
+    const { firstStructure, secondStructure } = {
+        [-1]: () => ({ firstStructure: targetStructure, secondStructure: sourceStructure }),
+        [1]: () => ({ firstStructure: sourceStructure, secondStructure: targetStructure }),
+    }[moveDirection]();
+
+    const between = new Range(firstStructure.end, secondStructure.start);
 
     await editor.edit((eb) => {
         if (editor.document.uri !== documentUri || editor.document.version !== documentVersion) {
             console.error('structural-motion not applying change as document has changed');
             return;
         }
-        const sourceText = editor.document.getText(sourceStructure);
+        const firstText = editor.document.getText(firstStructure);
         const betweenText = editor.document.getText(between);
-        const targetText = editor.document.getText(targetStructure);
-        eb.delete(
-            {
-                [-1]: () => targetStructure.with({ end: sourceStructure.end }),
-                [1]: () => sourceStructure.with({ end: targetStructure.end }),
-            }[lineDelta](),
-        );
-        eb.insert(
-            {
-                [-1]: () => targetStructure,
-                [1]: () => sourceStructure,
-            }[lineDelta]().start,
-            {
-                [-1]: () => sourceText + betweenText + targetText,
-                [1]: () => targetText + betweenText + sourceText,
-            }[lineDelta](),
-        );
+        const secondText = editor.document.getText(secondStructure);
+        eb.delete(new Range(firstStructure.start, secondStructure.end));
+        eb.insert(firstStructure.start, secondText + betweenText + firstText);
     });
     const newCursorPosition = cursorPosition.with({
-        line: cursorPosition.line + (targetStructure.end.line - targetStructure.start.line + 1) * lineDelta,
+        line: cursorPosition.line + (targetStructure.end.line - targetStructure.start.line + 1) * moveDirection,
     });
     editor.selections = [new Selection(newCursorPosition, newCursorPosition)];
 }
