@@ -4,7 +4,7 @@ import { before } from 'mocha';
 import * as path from 'path';
 
 import * as vscode from 'vscode';
-import { openTextDocument } from './text-document-util';
+import { openReusableTextDocument } from './text-document-util';
 
 type Language = {
     name: string;
@@ -60,7 +60,10 @@ languages.forEach((language) => {
                 return;
             }
 
-            const editor = await openTextDocument(warmUpFile);
+            const editor = await openReusableTextDocument(
+                language.name,
+                readFileSync(warmUpFile, { encoding: 'utf8' }),
+            );
 
             let result: unknown = undefined;
 
@@ -78,11 +81,15 @@ languages.forEach((language) => {
             const fixturePath = path.resolve(__dirname, '../../testFixture', language.name, fixtureFolder);
 
             test(`Fixture: ${fixtureFolder} - move down`, async () => {
+                const beforeContent = readFileSync(path.join(fixturePath, `before${language.extension}`), {
+                    encoding: 'utf8',
+                });
+
                 const expectedResult = readFileSync(path.join(path.join(fixturePath, `result${language.extension}`)), {
                     encoding: 'utf-8',
                 });
 
-                const editor = await openTextDocument(path.join(fixturePath, `before${language.extension}`));
+                const editor = await openReusableTextDocument(language.name, beforeContent);
 
                 await goToCursorPlaceholder(editor);
 
@@ -92,11 +99,16 @@ languages.forEach((language) => {
             });
 
             test(`Fixture: ${fixtureFolder} - move up`, async () => {
-                const expectedResult = readFileSync(path.join(path.join(fixturePath, `before${language.extension}`)), {
-                    encoding: 'utf-8',
-                }).replace(language.cursorPlaceholder, '');
+                const beforeContent = readFileSync(path.join(fixturePath, `before${language.extension}`), {
+                    encoding: 'utf8',
+                });
 
-                const editor = await openTextDocument(path.join(fixturePath, `before${language.extension}`));
+                const expectedResult = beforeContent.replace(language.cursorPlaceholder, '');
+
+                const editor = await openReusableTextDocument(
+                    language.name,
+                    readFileSync(path.join(fixturePath, `before${language.extension}`), { encoding: 'utf8' }),
+                );
 
                 await goToCursorPlaceholder(editor);
 

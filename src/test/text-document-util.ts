@@ -1,22 +1,41 @@
 import assert from 'assert';
-import { afterEach, beforeEach } from 'mocha';
-import { TextDocument, TextEditor, commands, window, workspace } from 'vscode';
+import { after, before } from 'mocha';
+import { Range, TextDocument, TextEditor, commands, window, workspace } from 'vscode';
 
-const managedTextDocuments: TextDocument[] = [];
+const reusableTextDocuments: Map<string, TextDocument> = new Map();
 
-beforeEach(() => {
-    managedTextDocuments.length = 0;
+before(() => {
+    reusableTextDocuments.clear();
+});
+after(async () => {
+    await closeTextDocuments(reusableTextDocuments.values());
 });
 
-export async function openTextDocument(filePath: string): Promise<TextEditor> {
-    const document = await workspace.openTextDocument(filePath);
-    managedTextDocuments.push(document);
-    return await window.showTextDocument(document);
+export async function openReusableTextDocument(language: string, content: string): Promise<TextEditor> {
+    const foundDocument = reusableTextDocuments.get(language);
+    if (foundDocument) {
+        const editor = await window.showTextDocument(foundDocument);
+        assert(
+            await editor.edit((eb) => {
+                eb.delete(
+                    new Range(
+                        editor.document.lineAt(0).range.start,
+                        editor.document.lineAt(foundDocument.lineCount - 1).rangeIncludingLineBreak.end,
+                    ),
+                );
+                eb.insert(editor.document.lineAt(0).range.start, content);
+            }),
+        );
+        return editor;
+    }
+    const newDocument = await workspace.openTextDocument({ language, content });
+    reusableTextDocuments.set(language, newDocument);
+    return await window.showTextDocument(newDocument);
 }
 
-afterEach(async () => {
+async function closeTextDocuments(documents: Iterable<TextDocument>) {
     let success = true;
-    for (const document of managedTextDocuments) {
+    for (const document of documents) {
         try {
             await window.showTextDocument(document);
             await commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
@@ -26,4 +45,4 @@ afterEach(async () => {
         }
     }
     assert(success);
-});
+}
