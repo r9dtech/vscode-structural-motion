@@ -48,7 +48,6 @@ languages.forEach((language) => {
 
     suite(`Fixtures for ${language.name}`, () => {
         before(async () => {
-            console.log([1]);
 
             const warmUpFile = path.resolve(
                 __dirname,
