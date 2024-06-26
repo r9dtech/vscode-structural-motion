@@ -3,65 +3,68 @@ import { readFileSync } from 'fs';
 import { before } from 'mocha';
 import * as path from 'path';
 
-import * as vscode from 'vscode';
-import { findFixtureFolders, goToCursorPlaceholder } from './e2e-util';
-import { languages, waitForLanguageServer } from './language-utils';
-import { openReusableTextDocument } from './text-document-util';
-
-languages.forEach((language) => {
-    before(async () => {
-        await waitForLanguageServer(language);
-    });
-});
+import { commands } from 'vscode';
+import { findFixtureFolders, goToCursorPlaceholder, languageFixtureDetails } from './util/e2e';
+import { supportedLanguages } from './util/language';
+import { openReusableEditor } from './util/reusable-editor';
 
 suite('end to end', () => {
-    languages.forEach((language) => {
+    supportedLanguages.forEach((language) => {
+        const languageFixtureDetail = languageFixtureDetails[language];
         const fixtureFolders = findFixtureFolders(language);
-        suite(`Fixtures for ${language.name}`, () => {
+        suite(`Fixtures for ${language}`, () => {
             before(async () => {});
 
             fixtureFolders.forEach((fixtureFolder) => {
-                const fixturePath = path.resolve(__dirname, '../../testFixture', language.name, fixtureFolder);
+                const fixturePath = path.resolve(__dirname, '../../testFixture', language, fixtureFolder);
 
                 test(`Fixture: ${fixtureFolder} - move down`, async () => {
-                    const beforeContent = readFileSync(path.join(fixturePath, `before${language.extension}`), {
-                        encoding: 'utf8',
-                    });
+                    const beforeContent = readFileSync(
+                        path.join(fixturePath, `before${languageFixtureDetail.extension}`),
+                        {
+                            encoding: 'utf8',
+                        },
+                    );
 
                     const expectedResult = readFileSync(
-                        path.join(path.join(fixturePath, `result${language.extension}`)),
+                        path.join(path.join(fixturePath, `result${languageFixtureDetail.extension}`)),
                         {
                             encoding: 'utf-8',
                         },
                     );
 
-                    const editor = await openReusableTextDocument(language.name, beforeContent);
+                    const editor = await openReusableEditor(language, beforeContent);
 
                     await goToCursorPlaceholder(editor, language);
 
-                    await vscode.commands.executeCommand('structural-motion.moveStructureDown');
+                    await commands.executeCommand('structural-motion.moveStructureDown');
 
                     assert.equal(expectedResult, editor.document.getText());
                 });
 
                 test(`Fixture: ${fixtureFolder} - move up`, async () => {
-                    const beforeContent = readFileSync(path.join(fixturePath, `before${language.extension}`), {
-                        encoding: 'utf8',
-                    });
+                    const beforeContent = readFileSync(
+                        path.join(fixturePath, `before${languageFixtureDetail.extension}`),
+                        {
+                            encoding: 'utf8',
+                        },
+                    );
 
-                    const expectedResult = beforeContent.replace(language.cursorPlaceholder, '');
+                    const expectedResult = beforeContent.replace(languageFixtureDetail.cursorPlaceholder, '');
 
-                    const editor = await openReusableTextDocument(
-                        language.name,
-                        readFileSync(path.join(fixturePath, `before${language.extension}`), { encoding: 'utf8' }),
+                    const editor = await openReusableEditor(
+                        language,
+                        readFileSync(path.join(fixturePath, `before${languageFixtureDetail.extension}`), {
+                            encoding: 'utf8',
+                        }),
                     );
 
                     await goToCursorPlaceholder(editor, language);
 
                     const selections = editor.selections;
 
-                    await vscode.commands.executeCommand('structural-motion.moveStructureDown');
-                    await vscode.commands.executeCommand('structural-motion.moveStructureUp');
+                    await commands.executeCommand('structural-motion.moveStructureDown');
+                    await commands.executeCommand('structural-motion.moveStructureUp');
 
                     assert.equal(expectedResult, editor.document.getText());
                     assert.equal(JSON.stringify(selections), JSON.stringify(editor.selections));
