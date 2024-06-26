@@ -1,9 +1,10 @@
 import * as assert from 'assert';
 import { existsSync, readFileSync, readdirSync } from 'fs';
-import { afterEach, before } from 'mocha';
+import { before } from 'mocha';
 import * as path from 'path';
 
 import * as vscode from 'vscode';
+import { openTextDocument } from './text-document-util';
 
 type Language = {
     name: string;
@@ -48,7 +49,6 @@ languages.forEach((language) => {
 
     suite(`Fixtures for ${language.name}`, () => {
         before(async () => {
-
             const warmUpFile = path.resolve(
                 __dirname,
                 '../../testFixture',
@@ -60,7 +60,7 @@ languages.forEach((language) => {
                 return;
             }
 
-            const editor = await openFile(warmUpFile);
+            const editor = await openTextDocument(warmUpFile);
 
             let result: unknown = undefined;
 
@@ -74,10 +74,6 @@ languages.forEach((language) => {
             }
         });
 
-        afterEach(async () => {
-            await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
-        });
-
         fixtureFolders.forEach((fixtureFolder) => {
             const fixturePath = path.resolve(__dirname, '../../testFixture', language.name, fixtureFolder);
 
@@ -86,9 +82,9 @@ languages.forEach((language) => {
                     encoding: 'utf-8',
                 });
 
-                const editor = await openFile(path.join(fixturePath, `before${language.extension}`));
+                const editor = await openTextDocument(path.join(fixturePath, `before${language.extension}`));
 
-                await goToCursor(editor);
+                await goToCursorPlaceholder(editor);
 
                 await vscode.commands.executeCommand('structural-motion.moveStructureDown');
 
@@ -100,9 +96,9 @@ languages.forEach((language) => {
                     encoding: 'utf-8',
                 }).replace(language.cursorPlaceholder, '');
 
-                const editor = await openFile(path.join(fixturePath, `before${language.extension}`));
+                const editor = await openTextDocument(path.join(fixturePath, `before${language.extension}`));
 
-                await goToCursor(editor);
+                await goToCursorPlaceholder(editor);
 
                 const selections = editor.selections;
 
@@ -115,22 +111,7 @@ languages.forEach((language) => {
         });
     });
 
-    async function openFile(filePath: string): Promise<vscode.TextEditor> {
-        const document = await vscode.workspace.openTextDocument(filePath);
-
-        await vscode.window.showTextDocument(document);
-        await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
-        await vscode.window.showTextDocument(document);
-
-        const editor = vscode.window.activeTextEditor;
-
-        if (editor?.document.uri.path !== filePath) {
-            assert.fail('Editor did not open');
-        }
-        return editor;
-    }
-
-    async function goToCursor(editor: vscode.TextEditor) {
+    async function goToCursorPlaceholder(editor: vscode.TextEditor) {
         for (let index = 0; index < editor.document.lineCount; index++) {
             const line = editor.document.lineAt(index).text;
             const cursorStartsAt = line.indexOf(language.cursorPlaceholder);
