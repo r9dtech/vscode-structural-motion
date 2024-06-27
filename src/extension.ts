@@ -27,15 +27,21 @@ export function activate(context: ExtensionContext) {
     );
 }
 
-async function moveStructure(moveDirection: -1 | 1) {
+export async function moveStructure(moveDirection: -1 | 1) {
     const editor = window.activeTextEditor;
 
     if (!editor) {
         return;
     }
 
+    if (!editor.selection.isEmpty) {
+        console.warn('Moving selections is not yet supported');
+        return;
+    }
+
     const documentUri = editor.document.uri;
     const documentVersion = editor.document.version;
+
     const cursorPosition = editor.selection.active;
 
     const symbolsPromise = getSymbolInformation(editor.document);
