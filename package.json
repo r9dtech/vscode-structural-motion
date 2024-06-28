@@ -15,11 +15,13 @@
         "commands": [
             {
                 "command": "structural-motion.moveStructureDown",
-                "title": "Move Structure Down"
+                "title": "Move Structure Down",
+                "enablement": "activeEditor && !editorReadonly"
             },
             {
                 "command": "structural-motion.moveStructureUp",
-                "title": "Move Structure Down"
+                "title": "Move Structure Up",
+                "enablement": "activeEditor && !editorReadonly"
             }
         ],
         "keybindings": [
