@@ -27,6 +27,13 @@ export function activate(context: ExtensionContext) {
     );
 }
 
+export function deactivate() {
+    // This plugin has nothing to deactivate
+}
+
+/**
+ * Find a structure under the cursor in the active editor and move it past whatever structure above or below
+ */
 export async function moveStructure(moveDirection: -1 | 1) {
     const editor = window.activeTextEditor;
 
@@ -96,6 +103,12 @@ export async function moveStructure(moveDirection: -1 | 1) {
     editor.selections = [new Selection(newCursorPosition, newCursorPosition)];
 }
 
+/**
+ * Find a structure using provided symbols and selection ranges provided by language plugins
+ *
+ * A 'structure' in this context is a range of whole lines in a file which represent some discrete unit in a given
+ * language - for example a function, class, array, statement, expression, html tag, etc.
+ */
 async function findStructure(
     document: TextDocument,
     lineNumber: number,
@@ -109,10 +122,15 @@ async function findStructure(
     const symbols = await symbolsPromise;
 
     const selectionRangesFromLineStart = getSelectionRanges(
+        // selectionRanges from line start are generally find structures ending on this line
         document,
         new Position(lineNumber, textLine.firstNonWhitespaceCharacterIndex),
     );
-    const selectionRangesFromLineEnd = getSelectionRanges(document, textLine.range.end);
+    const selectionRangesFromLineEnd = getSelectionRanges(
+        // selectionRanges from line end are generally find structures starting on this line
+        document,
+        textLine.range.end,
+    );
 
     const upwardsRanges = extractFullLineRanges(document, await selectionRangesFromLineStart).filter(
         (r) => r.end.line === lineNumber,
@@ -135,6 +153,12 @@ function findRangeMatchingEmptyLine(line: TextLine): Range | undefined {
     return line.isEmptyOrWhitespace ? line.range : undefined;
 }
 
+/**
+ * If a range ends on a give line, we can double-check that it is a sensible structure by finding ranges starting at the end of it's first line.
+ *
+ * This is useful if, for example, we have found a range from a closing brace, as language plugins will often provide the first full-line selection range
+ * for a function, but not for (e.g.) an if - statement.
+ */
 async function findRangeFromUpwardsRangesWithMatchingDownwardRange(
     document: TextDocument,
     upwardsRanges: Range[],
@@ -225,8 +249,4 @@ function isFullLineSelection(document: TextDocument, range: Range): boolean {
 
 function documentHasLine(document: TextDocument, line: number): boolean {
     return line >= 0 && line < document.lineCount;
-}
-
-export function deactivate() {
-    // This plugin has nothing to deactivate
 }
