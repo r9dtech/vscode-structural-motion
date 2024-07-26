@@ -1,4 +1,4 @@
-# structural-motion README
+# Structural-Motion README
 
 A VSCode plugin which allows you to move code structures (such as functions and classes) up and down with keyboard shortcuts.
 
@@ -10,4 +10,9 @@ This should work reasonably well in most languages for which VSCode has a good p
 
 ## Known Issues
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+* Multiple cursors are not supported
+* Moving selected text is not supported
+* Indentation based languages (such as Python) behave less robustly because the line on which a class and it's last method end are the same, so Structural-Motion can't make a good decision about what to move
+* Line breaks in strange places can confuse Structural-Motion
+* Whitespace at the end of lines can confuse Structural-Motion
+* Moving structures past method chains doesn't work well
