@@ -1,13 +1,26 @@
 {
     "name": "structural-motion",
     "displayName": "Structural Motion",
-    "description": "",
+    "description": "A VSCode plugin which allows you to move code structures (such as functions and classes) up and down with keyboard shortcuts.",
     "version": "0.0.1",
     "engines": {
         "vscode": "^1.90.0"
     },
     "categories": [
         "Other"
+    ],
+    "keywords": [
+        "vscode",
+        "vscode-extension",
+        "structural-motion",
+        "structural",
+        "motion",
+        "move",
+        "rearrange",
+        "order",
+        "reorder",
+        "function",
+        "block"
     ],
     "activationEvents": [],
     "main": "./out/extension.js",
