@@ -4,7 +4,7 @@
     "repository": "https://github.com/r9dtech/vscode-structural-motion",
     "displayName": "Structural Motion",
     "description": "A VSCode plugin which allows you to move code structures (such as functions and classes) up and down with keyboard shortcuts.",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "engines": {
         "vscode": "^1.90.0"
     },
